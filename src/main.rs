@@ -49,7 +49,7 @@ fn main() {
                         MessageBoxW, MB_ICONINFORMATION, MB_OK, MB_TOPMOST,
                     };
                     let title: Vec<u16> = "NetTrigger 正在运行\0".encode_utf16().collect();
-                    let msg: Vec<u16> = "NetTrigger 已经在后台运行中。\n\n程序已常驻系统托盘（若任务栏右下角未直接显示，请点击“^”折叠图标）。\n右键图标即可进行网络重连或打开【设置】。\0"
+                    let msg: Vec<u16> = "NetTrigger 已经在后台运行中。\n\n程序已常驻任务栏右下角托盘（若未显示，请点击“^”展开查看）。\n鼠标左键或右键托盘图标均可打开【设置】。\0"
                         .encode_utf16()
                         .collect();
                     MessageBoxW(
@@ -100,7 +100,7 @@ fn main() {
                     MessageBoxW, MB_ICONINFORMATION, MB_OK, MB_TOPMOST,
                 };
                 let title: Vec<u16> = "NetTrigger 已启动\0".encode_utf16().collect();
-                let msg: Vec<u16> = "NetTrigger 已在后台启动并开始守护网络连接。\n\n程序已常驻任务栏右下角托盘（若未显示，请点击“^”折叠图标展开查看）。\n右键托盘图标可进行网络重连或打开【设置】。\0"
+                let msg: Vec<u16> = "NetTrigger 已在后台启动并守护网络连接。\n\n程序已常驻任务栏右下角托盘（若未显示，请点击“^”展开查看）。\n鼠标左键或右键托盘图标均可打开【设置】。\0"
                     .encode_utf16()
                     .collect();
                 MessageBoxW(

@@ -31,12 +31,12 @@ pub enum NetworkState {
 impl NetworkState {
     pub fn description(&self) -> &'static str {
         match self {
-            NetworkState::Initializing => "初始化中...",
-            NetworkState::Online => "网络畅通",
-            NetworkState::CaptivePortal => "需要认证",
-            NetworkState::Authenticating => "正在认证中...",
-            NetworkState::Disconnected => "网络已断开",
-            NetworkState::BackoffWait => "重试等待中",
+            NetworkState::Initializing => "正在启动...",
+            NetworkState::Online => "网络已连接",
+            NetworkState::CaptivePortal => "需要登录校园网",
+            NetworkState::Authenticating => "正在连接网络...",
+            NetworkState::Disconnected => "未连接到网络 (WiFi/网线未插)",
+            NetworkState::BackoffWait => "稍后自动重试",
         }
     }
 }
@@ -139,20 +139,37 @@ impl StateMachine {
                 self.backoff_until = None;
                 self.transition_to(
                     NetworkState::Online,
-                    format!("网络畅通 (延迟: {}ms)", self.latency_ms),
+                    format!("网络已连接 (延迟: {}ms)", self.latency_ms),
                 );
             }
             ProbeStatus::CaptivePortal { redirect_url } => {
-                let msg = redirect_url
-                    .map(|u| format!("检测到网络认证拦截: {}", u))
-                    .unwrap_or_else(|| "检测到网关认证拦截".to_string());
+                // 智能自动捕获：若网关返回了真实认证地址，且当前用户尚未配置或为占位地址，自动自愈采纳
+                if let Some(ref detected_url) = redirect_url {
+                    let cur_portal = self.config.auth.portal_url.trim();
+                    let is_empty_or_default = cur_portal.is_empty()
+                        || cur_portal.contains("10.0.0.55")
+                        || cur_portal.contains("example.com");
+
+                    if is_empty_or_default && !detected_url.is_empty() {
+                        self.config.auth.portal_url = detected_url.clone();
+                        let cfg_to_save = self.config.clone();
+                        std::thread::spawn(move || {
+                            if let Ok(toml_str) = toml::to_string_pretty(&cfg_to_save) {
+                                let _ = std::fs::write(crate::utils::fs::get_config_path(), toml_str);
+                            }
+                        });
+                        println!("✨ 智能识别并自动设置校园网登录网址: {}", detected_url);
+                    }
+                }
+
+                let msg = "需要登录校园网，正在准备连接...".to_string();
                 self.transition_to(NetworkState::CaptivePortal, msg);
 
                 // 立即触发自动重连动作
                 self.trigger_reconnect();
             }
             ProbeStatus::Offline { reason } => {
-                self.transition_to(NetworkState::Disconnected, format!("网络断开: {}", reason));
+                self.transition_to(NetworkState::Disconnected, format!("未连接到网络: {}", reason));
             }
         }
 
@@ -169,12 +186,23 @@ impl StateMachine {
             }
         }
 
-        self.transition_to(NetworkState::Authenticating, "正在发起后台静默认证...".to_string());
+        let is_browser_mode = self.config.auth.mode == "browser";
+        let action_desc = if is_browser_mode {
+            "正在打开登录网页..."
+        } else {
+            "正在自动连接网络..."
+        };
+        self.transition_to(NetworkState::Authenticating, action_desc.to_string());
 
         // 执行认证
-        let auth_result: AuthResult = AuthExecutor::execute(&self.config);
+        let _auth_result: AuthResult = AuthExecutor::execute(&self.config);
 
-        // 认证报文发送完成后，立即执行一次快速探针二次核验
+        if is_browser_mode {
+            // 网页自动登录模式下，给浏览器 1.5 秒启动、自动填充与提交时间，避免 0ms 瞬间误判失败
+            std::thread::sleep(Duration::from_millis(1500));
+        }
+
+        // 认证报文发送完成后，执行一次快速探针二次核验
         let verify_report = self.probe.check_with_report();
         self.latency_ms = verify_report.latency_ms;
 
@@ -183,19 +211,26 @@ impl StateMachine {
             self.backoff_until = None;
             self.transition_to(
                 NetworkState::Online,
-                format!("自动认证成功！(延迟: {}ms)", self.latency_ms),
+                format!("网络连接成功！(延迟: {}ms)", self.latency_ms),
             );
         } else {
-            // 认证仍未成功，启动指数退避防风暴
+            // 认证仍未成功，启动平滑退避
             self.consecutive_failures = self.consecutive_failures.saturating_add(1);
             let backoff_secs = self.calculate_backoff_secs();
             self.backoff_until = Some(Instant::now() + Duration::from_secs(backoff_secs));
 
-            let fail_msg = format!(
-                "认证未通过: {}。{}秒后重试 (第{}次)",
-                auth_result.message, backoff_secs, self.consecutive_failures
-            );
-            self.transition_to(NetworkState::BackoffWait, fail_msg);
+            let user_friendly_msg = if is_browser_mode {
+                format!(
+                    "等待网页登录中，{}秒后自动检测 (第{}次)",
+                    backoff_secs, self.consecutive_failures
+                )
+            } else {
+                format!(
+                    "连接未成功，{}秒后自动重试 (第{}次)",
+                    backoff_secs, self.consecutive_failures
+                )
+            };
+            self.transition_to(NetworkState::BackoffWait, user_friendly_msg);
         }
     }
 
@@ -205,7 +240,7 @@ impl StateMachine {
     pub fn on_network_changed(&mut self) -> NetworkState {
         self.consecutive_failures = 0;
         self.backoff_until = None;
-        self.last_message = "收到 Windows 网络变动事件，立即重新检测...".to_string();
+        self.last_message = "网络已变动，立即重新检测...".to_string();
         self.step_probe()
     }
 

@@ -21,29 +21,16 @@ use std::time::Duration;
 
 pub const HTML_TEMPLATE: &str = include_str!("template.html");
 
-/// 启动瞬态 Web 配置服务，并在默认浏览器中唤起
-pub fn launch_ephemeral_web_config(
-    current_config: Config,
-    on_config_saved: Option<Sender<Config>>,
-) -> Result<u16, String> {
-    // 绑定回环随机端口
-    let listener = TcpListener::bind("127.0.0.1:0")
-        .map_err(|e| format!("绑定本地临时端口失败: {}", e))?;
-    let port = listener
-        .local_addr()
-        .map_err(|e| format!("获取本地端口失败: {}", e))?
-        .port();
+static ACTIVE_SERVER: std::sync::Mutex<Option<(u16, Arc<AtomicBool>)>> = std::sync::Mutex::new(None);
 
-    let server_url = format!("http://127.0.0.1:{}/", port);
-
-    // 唤起用户系统默认浏览器打开该网页
+fn open_browser_url(url: &str) {
     #[cfg(windows)]
     {
         use windows_sys::Win32::UI::Shell::ShellExecuteW;
         use windows_sys::Win32::UI::WindowsAndMessaging::SW_SHOWNORMAL;
 
         let wide_op: Vec<u16> = "open\0".encode_utf16().collect();
-        let wide_url: Vec<u16> = format!("{}\0", server_url).encode_utf16().collect();
+        let wide_url: Vec<u16> = format!("{}\0", url).encode_utf16().collect();
         unsafe {
             ShellExecuteW(
                 std::ptr::null_mut(),
@@ -55,9 +42,37 @@ pub fn launch_ephemeral_web_config(
             );
         }
     }
+}
+
+/// 启动瞬态 Web 配置服务，并在默认浏览器中唤起（支持活动实例复用）
+pub fn launch_ephemeral_web_config(
+    current_config: Config,
+    on_config_saved: Option<Sender<Config>>,
+) -> Result<u16, String> {
+    // 检查既有服务是否还在运行，若存在直接复用既有端口唤起浏览器，避免重复绑定与开辟线程
+    let mut lock = ACTIVE_SERVER.lock().unwrap_or_else(|e| e.into_inner());
+    if let Some((active_port, ref running_flag)) = *lock {
+        if running_flag.load(Ordering::SeqCst) {
+            let server_url = format!("http://127.0.0.1:{}/", active_port);
+            open_browser_url(&server_url);
+            return Ok(active_port);
+        }
+    }
+
+    // 绑定回环随机端口
+    let listener = TcpListener::bind("127.0.0.1:0")
+        .map_err(|e| format!("绑定本地临时端口失败: {}", e))?;
+    let port = listener
+        .local_addr()
+        .map_err(|e| format!("获取本地端口失败: {}", e))?
+        .port();
+
+    let server_url = format!("http://127.0.0.1:{}/", port);
+    open_browser_url(&server_url);
 
     let is_running = Arc::new(AtomicBool::new(true));
     let is_running_clone = Arc::clone(&is_running);
+    *lock = Some((port, Arc::clone(&is_running)));
 
     // 在临时独立线程中运行微型 HTTP 服务
     thread::Builder::new()
@@ -82,7 +97,8 @@ pub fn launch_ephemeral_web_config(
                     }
                 }
             }
-            // 自动退出，Socket 在此随 scope 彻底丢弃释放
+            // 自动标记退出，Socket 随 scope 彻底丢弃释放
+            is_running_clone.store(false, Ordering::SeqCst);
         })
         .map_err(|e| format!("启动 Web 临时线程失败: {}", e))?;
 

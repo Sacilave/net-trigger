@@ -10,7 +10,7 @@ pub mod autostart;
 
 use crate::state::NetworkState;
 use tray_icon::menu::{CheckMenuItem, Menu, MenuEvent, MenuItem, PredefinedMenuItem};
-use tray_icon::{Icon, TrayIcon, TrayIconBuilder};
+use tray_icon::{Icon, MouseButton, MouseButtonState, TrayIcon, TrayIconBuilder, TrayIconEvent};
 
 /// 托盘菜单动作命令
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -89,30 +89,49 @@ impl SystemTrayManager {
 
         let tooltip = match state {
             NetworkState::Online => {
-                format!("{} - 网络畅通 | 延迟: {}ms", app_name, latency_ms)
+                format!("{} - 网络已连接 | 延迟: {}ms", app_name, latency_ms)
             }
             NetworkState::Authenticating => {
-                format!("{} - 正在自动认证...", app_name)
+                format!("{} - 正在连接网络...", app_name)
             }
             NetworkState::CaptivePortal => {
-                format!("{} - 检测到网络拦截，准备重连", app_name)
+                format!("{} - 需要登录校园网，正在准备连接", app_name)
             }
             NetworkState::Disconnected => {
-                format!("{} - 网络已断开", app_name)
+                format!("{} - 未连接到网络 (WiFi/网线未插)", app_name)
             }
             NetworkState::BackoffWait => {
-                format!("{} - 等待重试冷却中...", app_name)
+                format!("{} - 网络连接稍后重试...", app_name)
             }
             NetworkState::Initializing => {
-                format!("{} - 正在初始化...", app_name)
+                format!("{} - 正在启动...", app_name)
             }
         };
 
         let _ = self.tray_icon.set_tooltip(Some(tooltip));
     }
 
-    /// 轮询托盘菜单用户点击事件（非阻塞）
+    /// 轮询托盘交互事件（非阻塞）
     pub fn poll_menu_event(&self) -> Option<TrayAction> {
+        // 1. 响应托盘图标左键单击 / 双击：直接唤起【设置】
+        if let Ok(event) = TrayIconEvent::receiver().try_recv() {
+            match event {
+                TrayIconEvent::Click {
+                    button: MouseButton::Left,
+                    button_state: MouseButtonState::Up,
+                    ..
+                }
+                | TrayIconEvent::DoubleClick {
+                    button: MouseButton::Left,
+                    ..
+                } => {
+                    return Some(TrayAction::OpenWebConfig);
+                }
+                _ => {}
+            }
+        }
+
+        // 2. 响应右键上下文菜单项点击
         if let Ok(event) = MenuEvent::receiver().try_recv() {
             if event.id == self.item_manual_check.id() {
                 return Some(TrayAction::ManualCheck);
