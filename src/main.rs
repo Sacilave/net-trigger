@@ -20,12 +20,48 @@ use utils::fs::get_config_path;
 use watcher::{start_network_watcher, NetworkEvent};
 
 fn main() {
+    // 判断是否为自动启动（开机自启参数、命令行静默参数或系统开机引导）
+    let is_auto_launch = {
+        let has_flag = std::env::args().any(|arg| {
+            arg == "--autostart" || arg == "--silent" || arg == "-s" || arg == "/silent"
+        });
+        #[cfg(windows)]
+        let is_system_boot = unsafe {
+            // 系统开机启动 3 分钟以内且开启了自启动
+            windows_sys::Win32::System::SystemInformation::GetTickCount64() < 180_000
+                && tray::autostart::is_autostart_enabled()
+        };
+        #[cfg(not(windows))]
+        let is_system_boot = false;
+
+        has_flag || is_system_boot
+    };
+
     // 1. 全局单实例互斥锁，防止多开
     #[cfg(windows)]
     let _single_instance_guard = match acquire_single_instance_mutex() {
         Ok(handle) => handle,
         Err(_) => {
-            eprintln!("NetTrigger 已经在运行中。");
+            // 若已经在运行且用户手动双击唤起，弹出贴心提示告知已常驻托盘
+            if !is_auto_launch {
+                unsafe {
+                    use windows_sys::Win32::UI::WindowsAndMessaging::{
+                        MessageBoxW, MB_ICONINFORMATION, MB_OK, MB_TOPMOST,
+                    };
+                    let title: Vec<u16> = "NetTrigger 正在运行\0".encode_utf16().collect();
+                    let msg: Vec<u16> = "NetTrigger 已经在后台运行中。\n\n程序已常驻系统托盘（若任务栏右下角未直接显示，请点击“^”折叠图标）。\n右键图标即可进行网络重连或打开【设置】。\0"
+                        .encode_utf16()
+                        .collect();
+                    MessageBoxW(
+                        std::ptr::null_mut(),
+                        msg.as_ptr(),
+                        title.as_ptr(),
+                        MB_OK | MB_ICONINFORMATION | MB_TOPMOST,
+                    );
+                }
+            } else {
+                eprintln!("NetTrigger 已经在运行中。");
+            }
             return;
         }
     };
@@ -56,7 +92,28 @@ fn main() {
         }
     };
 
-    // 4. 初始化核心有限状态机
+    // 4. 若为手动双击启动（非开机自启/非静默模式），弹出精简易懂的消息提醒，告知用户程序已在托盘守护
+    if !is_auto_launch {
+        std::thread::spawn(move || {
+            unsafe {
+                use windows_sys::Win32::UI::WindowsAndMessaging::{
+                    MessageBoxW, MB_ICONINFORMATION, MB_OK, MB_TOPMOST,
+                };
+                let title: Vec<u16> = "NetTrigger 已启动\0".encode_utf16().collect();
+                let msg: Vec<u16> = "NetTrigger 已在后台启动并开始守护网络连接。\n\n程序已常驻任务栏右下角托盘（若未显示，请点击“^”折叠图标展开查看）。\n右键托盘图标可进行网络重连或打开【设置】。\0"
+                    .encode_utf16()
+                    .collect();
+                MessageBoxW(
+                    std::ptr::null_mut(),
+                    msg.as_ptr(),
+                    title.as_ptr(),
+                    MB_OK | MB_ICONINFORMATION | MB_TOPMOST,
+                );
+            }
+        });
+    }
+
+    // 5. 初始化核心有限状态机
     let mut fsm = StateMachine::new(config.clone());
 
     // 5. 启动 Windows 原生 IP Helper 网络状态被动监听器

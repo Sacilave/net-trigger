@@ -83,8 +83,8 @@ pub fn set_autostart(enable: bool) -> Result<(), AutoStartError> {
         };
 
         let exe_path = std::env::current_exe().map_err(|_| AutoStartError::GetExePathFailed)?;
-        // 关键安全规范：包裹双引号防止路径空格截断
-        let quoted_cmd = format!("\"{}\"", exe_path.to_string_lossy());
+        // 关键安全规范：包裹双引号防止路径空格截断，并附带 --autostart 标识静默自启
+        let quoted_cmd = format!("\"{}\" --autostart", exe_path.to_string_lossy());
 
         let subkey_wide: Vec<u16> = format!("{}\0", REG_RUN_SUBKEY).encode_utf16().collect();
         let value_name_wide: Vec<u16> = format!("{}\0", REG_APP_NAME).encode_utf16().collect();
