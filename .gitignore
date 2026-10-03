@@ -1,0 +1,49 @@
+# ==========================================
+# NetTrigger - Git 忽略规则规范
+# ==========================================
+
+# 1. 敏感配置与凭据 (绝对严禁提交)
+config.toml
+*.local.toml
+*.secret.toml
+.env
+.env.*
+*.pem
+*.key
+*.pfx
+*.p12
+*.cer
+credentials.*
+secrets.*
+
+# 2. Rust 编译产物
+/target/
+**/*.rs.bk
+
+# 3. 日志与崩溃转储
+*.log
+logs/
+*.dmp
+*.dump
+
+# 4. 操作系统与临时文件
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.DS_Store
+
+# 5. IDE 与 编辑器配置
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+*.sublime-project
+*.sublime-workspace
+
+# 6. AI 助手与本地环境隔离
+.gemini/
+.antigravity/
+.agent/
+scratch/

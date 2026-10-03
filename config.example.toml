@@ -1,0 +1,43 @@
+# NetTrigger 核心配置文件模板 (config.example.toml)
+# 使用前请复制此文件并重命名为 config.toml，然后填入真实的校园网/宽带认证信息。
+# 注意: config.toml 已被加入 .gitignore，切勿将包含真实账号密码的文件提交到公开仓库。
+
+[general]
+# 托盘展示应用名称
+app_name = "NetTrigger"
+# 正常在线时的心跳保活探测间隔 (秒)
+heartbeat_interval_sec = 45
+# 探测超时时间 (毫秒)
+probe_timeout_ms = 3000
+# 启用 Windows 网络接口变更即时监听 (0 延迟响应)
+enable_network_watcher = true
+# 失败重试最大退避时间 (秒)
+max_backoff_sec = 60
+
+[probe]
+# 探测端点 (优先使用返回 204 的高速端点，避免自动跟随重定向)
+primary_url = "http://connect.rom.miui.com/generate_204"
+fallback_url = "http://www.msftconnecttest.com/connecttest.txt"
+fallback_expected_body = "Microsoft Connect Test"
+
+[auth]
+# 动作模式: "http" (静默模拟登录) 或 "browser" (唤起浏览器)
+mode = "http"
+# 校园网/公共网登录页面 URL (用于浏览器打开或 Referer 头部)
+portal_url = "http://portal.example.edu/"
+
+# 仅当 mode = "http" 时生效的认证配置
+[auth.http]
+method = "POST"
+action_url = "http://portal.example.edu/api/login"
+
+# 登录表单参数 (支持直接配置或替换字段)
+[auth.http.params]
+username = "your_student_id_or_username"
+password = "your_password_here"
+operator = "default"
+
+# 自定义请求头
+[auth.http.headers]
+User-Agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+Content-Type = "application/x-www-form-urlencoded"
