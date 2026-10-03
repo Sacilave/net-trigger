@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NetTrigger 配置中心</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card-bg: rgba(30, 41, 59, 0.7);
+      --border: rgba(255, 255, 255, 0.1);
+      --accent: #38bdf8;
+      --accent-glow: rgba(56, 189, 248, 0.2);
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --success: #22c55e;
+      --danger: #ef4444;
+      --warning: #f59e0b;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: radial-gradient(circle at top right, #1e1b4b, var(--bg));
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", sans-serif;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      padding: 30px 16px;
+    }
+    .container {
+      width: 100%;
+      max-width: 820px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 16px;
+    }
+    .logo-group {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .logo-badge {
+      width: 40px;
+      height: 40px;
+      background: linear-gradient(135deg, #0284c7, #38bdf8);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      box-shadow: 0 0 20px var(--accent-glow);
+    }
+    h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }
+    .status-badge {
+      font-size: 13px;
+      padding: 6px 14px;
+      border-radius: 20px;
+      background: rgba(34, 197, 94, 0.15);
+      border: 1px solid rgba(34, 197, 94, 0.3);
+      color: var(--success);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--success);
+      box-shadow: 0 0 8px var(--success);
+    }
+    .card {
+      background: var(--card-bg);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 20px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    }
+    .card-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--accent);
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .preset-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+    .preset-card {
+      border: 1px solid var(--border);
+      background: rgba(15, 23, 42, 0.5);
+      border-radius: 10px;
+      padding: 14px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .preset-card:hover { border-color: var(--accent); }
+    .preset-card.active {
+      border-color: var(--accent);
+      background: rgba(56, 189, 248, 0.1);
+      box-shadow: 0 0 15px var(--accent-glow);
+    }
+    .preset-name { font-weight: 600; font-size: 14px; margin-bottom: 4px; display: flex; align-items: center; gap: 6px; }
+    .preset-desc { font-size: 12px; color: var(--text-muted); line-height: 1.4; }
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-bottom: 14px;
+    }
+    label { font-size: 13px; font-weight: 500; color: #cbd5e1; }
+    input[type="text"], input[type="password"], textarea, select {
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      color: #fff;
+      font-size: 13px;
+      font-family: inherit;
+      outline: none;
+      transition: border 0.2s;
+    }
+    input:focus, textarea:focus, select:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 10px var(--accent-glow);
+    }
+    .macro-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 4px;
+    }
+    .macro-chip {
+      font-size: 11px;
+      background: rgba(56, 189, 248, 0.15);
+      color: var(--accent);
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      padding: 3px 8px;
+      border-radius: 6px;
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.15s;
+    }
+    .macro-chip:hover {
+      background: var(--accent);
+      color: #0f172a;
+    }
+    .import-box {
+      border: 1px dashed var(--accent);
+      background: rgba(56, 189, 248, 0.05);
+      border-radius: 10px;
+      padding: 12px;
+      margin-bottom: 14px;
+    }
+    .btn-row {
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+      margin-top: 10px;
+    }
+    button {
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s;
+    }
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.08);
+      color: #cbd5e1;
+    }
+    .btn-secondary:hover { background: rgba(255, 255, 255, 0.15); }
+    .btn-primary {
+      background: linear-gradient(135deg, #0284c7, #38bdf8);
+      color: #0f172a;
+      box-shadow: 0 0 15px var(--accent-glow);
+    }
+    .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
+    .banner {
+      display: none;
+      padding: 12px;
+      border-radius: 8px;
+      font-size: 13px;
+      margin-bottom: 10px;
+      animation: fadeIn 0.3s ease;
+    }
+    .banner.success { background: rgba(34, 197, 94, 0.15); border: 1px solid var(--success); color: #86efac; }
+    .banner.error { background: rgba(239, 68, 68, 0.15); border: 1px solid var(--danger); color: #fca5a5; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="logo-group">
+        <div class="logo-badge">⚡</div>
+        <div>
+          <h1>NetTrigger 控制中心</h1>
+          <p style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">原生极轻量 · 0延迟感知 · 电竞级静默认证守护</p>
+        </div>
+      </div>
+      <div class="status-badge" id="net-badge">
+        <div class="status-dot"></div>
+        <span id="net-status-text">守护就绪</span>
+      </div>
+    </header>
+
+    <div id="alert-banner" class="banner"></div>
+
+    <!-- 运行档位预设 -->
+    <div class="card">
+      <div class="card-title">
+        <span>⚡ 场景运行档位 (Profile)</span>
+        <span style="font-size: 12px; color: var(--text-muted); font-weight: normal;">底层 CPU 0.00% | 内存 &lt; 2MB</span>
+      </div>
+      <div class="preset-grid">
+        <div class="preset-card active" onclick="setProfile('gaming')" id="p-gaming">
+          <div class="preset-name">🎮 电竞极速档</div>
+          <div class="preset-desc">50ms 瞬时防抖，15s 心跳，强制纯静默，打游戏绝不切屏弹窗。</div>
+        </div>
+        <div class="preset-card" onclick="setProfile('balanced')" id="p-balanced">
+          <div class="preset-name">🍃 平衡推荐档</div>
+          <div class="preset-desc">150ms 黄金防抖，45s 心跳，综合网络与无线信道最佳平衡。</div>
+        </div>
+        <div class="preset-card" onclick="setProfile('power_save')" id="p-power_save">
+          <div class="preset-name">🔋 省电办公档</div>
+          <div class="preset-desc">500ms 宽限防抖，90s 心跳，极限节省电池，适合图书馆与长续航。</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 智能 cURL 一键导入 -->
+    <div class="card">
+      <div class="card-title">
+        <span>🪄 智能一键导入 (F12 cURL 自动解析)</span>
+      </div>
+      <div class="import-box">
+        <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 6px;">
+          在浏览器登录页面按 <b>F12</b> ➔ 切换到 <b>Network(网络)</b> ➔ 点击登录 ➔ 右键登录请求 ➔ <b>Copy as cURL (bash 或 cmd)</b> 粘贴于此：
+        </div>
+        <textarea id="curl-input" rows="2" style="width:100%;" placeholder="在此粘贴 cURL 命令，点击一键自动解析填充..."></textarea>
+        <div style="margin-top: 8px; display: flex; justify-content: flex-end;">
+          <button class="btn-secondary" type="button" onclick="parseCurl()">✨ 一键解析并填入下方表单</button>
+        </div>
+      </div>
+
+      <!-- 核心配置参数表单 -->
+      <form id="config-form">
+        <div class="form-group">
+          <label>认证接口提交地址 (Action URL)</label>
+          <input type="text" id="action_url" required placeholder="http://portal.example.edu/api/login">
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+          <div class="form-group">
+            <label>认证请求方式 (Method)</label>
+            <select id="method">
+              <option value="POST">POST (默认，最常见)</option>
+              <option value="GET">GET</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>备用登录门户网页 (Portal URL)</label>
+            <input type="text" id="portal_url" placeholder="http://portal.example.edu/">
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+          <div class="form-group">
+            <label>用户名 / 学号 (Username)</label>
+            <input type="text" id="username" placeholder="2023xxxx">
+          </div>
+          <div class="form-group">
+            <label>认证密码 (Password)</label>
+            <input type="password" id="password" placeholder="••••••••">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>表单参数 (自定义键值对 / 运营商代码 / 宏参数)</label>
+          <textarea id="extra_params" rows="3" placeholder="key=value&#10;domain=telecom&#10;wlanuserip={ip}"></textarea>
+          <div class="macro-bar">
+            <span style="font-size: 11px; color: var(--text-muted); align-self: center;">点击快速插入宏:</span>
+            <span class="macro-chip" onclick="insertMacro('{ip}')">{ip} 本机内网IP</span>
+            <span class="macro-chip" onclick="insertMacro('{mac}')">{mac} 物理MAC</span>
+            <span class="macro-chip" onclick="insertMacro('{time}')">{time} 毫秒时间戳</span>
+            <span class="macro-chip" onclick="insertMacro('{time_s}')">{time_s} 秒时间戳</span>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 10px;">
+          <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+            <input type="checkbox" id="silent_mode" checked>
+            <span>静默免打扰模式 (成功不弹通知气泡)</span>
+          </label>
+          <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+            <input type="checkbox" id="allow_browser_fallback">
+            <span>允许失败拉起浏览器 (电竞场景建议关闭)</span>
+          </label>
+        </div>
+
+        <div class="btn-row">
+          <button type="button" class="btn-secondary" onclick="testCurrentConfig()" id="btn-test">🧪 一键诊断与联通性测试</button>
+          <button type="button" class="btn-primary" onclick="saveConfig()" id="btn-save">💾 保存并立即生效</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    let currentConfig = null;
+
+    // 页面加载拉取当前配置
+    window.addEventListener('DOMContentLoaded', async () => {
+      try {
+        const res = await fetch('/api/config');
+        if (res.ok) {
+          currentConfig = await res.json();
+          renderForm(currentConfig);
+        }
+      } catch (e) {
+        console.error("加载配置失败", e);
+      }
+    });
+
+    function setProfile(p) {
+      document.querySelectorAll('.preset-card').forEach(c => c.classList.remove('active'));
+      const target = document.getElementById('p-' + p);
+      if (target) target.classList.add('active');
+      if (currentConfig && currentConfig.general) {
+        currentConfig.general.profile = p;
+      }
+    }
+
+    function renderForm(cfg) {
+      if (cfg.general && cfg.general.profile) {
+        setProfile(cfg.general.profile);
+      }
+      document.getElementById('silent_mode').checked = cfg.general ? cfg.general.silent_mode : true;
+      document.getElementById('allow_browser_fallback').checked = cfg.general ? cfg.general.allow_browser_fallback : false;
+      document.getElementById('portal_url').value = (cfg.auth && cfg.auth.portal_url) || '';
+
+      const http = (cfg.auth && cfg.auth.http) || {};
+      document.getElementById('action_url').value = http.action_url || '';
+      document.getElementById('method').value = (http.method || 'POST').toUpperCase();
+
+      const params = http.params || {};
+      document.getElementById('username').value = params.username || '';
+      document.getElementById('password').value = params.password || '';
+
+      const extras = [];
+      for (const [k, v] of Object.entries(params)) {
+        if (k !== 'username' && k !== 'password') {
+          extras.push(`${k}=${v}`);
+        }
+      }
+      document.getElementById('extra_params').value = extras.join('\n');
+    }
+
+    function insertMacro(m) {
+      const area = document.getElementById('extra_params');
+      area.value += (area.value ? '\n' : '') + `param_name=${m}`;
+      area.focus();
+    }
+
+    // 智能 cURL 解析算法
+    function parseCurl() {
+      const text = document.getElementById('curl-input').value.trim();
+      if (!text) return;
+
+      // 提取 URL
+      const urlMatch = text.match(/curl\s+["']?([^"'\s]+)["']?/i) || text.match(/(?:'|")?(https?:\/\/[^\s"']+)/i);
+      if (urlMatch) {
+        document.getElementById('action_url').value = urlMatch[1];
+      }
+
+      // 提取 Method
+      if (text.includes('-X POST') || text.includes('--data') || text.includes('-d ')) {
+        document.getElementById('method').value = 'POST';
+      } else if (text.includes('-X GET')) {
+        document.getElementById('method').value = 'GET';
+      }
+
+      // 提取 Data
+      const dataMatch = text.match(/(?:--data-raw|--data|-d)\s+['"]([^'"]+)['"]/);
+      if (dataMatch) {
+        const payload = dataMatch[1];
+        const lines = [];
+        payload.split('&').forEach(pair => {
+          const [k, v] = pair.split('=');
+          if (k) {
+            const decKey = decodeURIComponent(k);
+            const decVal = v ? decodeURIComponent(v) : '';
+            if (decKey.toLowerCase().includes('user') || decKey.toLowerCase().includes('account')) {
+              document.getElementById('username').value = decVal;
+            } else if (decKey.toLowerCase().includes('pass') || decKey.toLowerCase().includes('pwd')) {
+              document.getElementById('password').value = decVal;
+            } else {
+              lines.push(`${decKey}=${decVal}`);
+            }
+          }
+        });
+        if (lines.length > 0) {
+          document.getElementById('extra_params').value = lines.join('\n');
+        }
+      }
+
+      showBanner('✨ cURL 解析成功！已自动填充表单字段。', 'success');
+    }
+
+    function collectForm() {
+      const activeCard = document.querySelector('.preset-card.active');
+      const profile = activeCard ? activeCard.id.replace('p-', '') : 'gaming';
+
+      const params = {};
+      const u = document.getElementById('username').value.trim();
+      const p = document.getElementById('password').value.trim();
+      if (u) params['username'] = u;
+      if (p) params['password'] = p;
+
+      const lines = document.getElementById('extra_params').value.split('\n');
+      lines.forEach(l => {
+        const trimmed = l.trim();
+        if (trimmed && trimmed.includes('=')) {
+          const idx = trimmed.indexOf('=');
+          const k = trimmed.substring(0, idx).trim();
+          const v = trimmed.substring(idx + 1).trim();
+          if (k) params[k] = v;
+        }
+      });
+
+      const updated = currentConfig || {};
+      updated.general = updated.general || {};
+      updated.general.profile = profile;
+      updated.general.silent_mode = document.getElementById('silent_mode').checked;
+      updated.general.allow_browser_fallback = document.getElementById('allow_browser_fallback').checked;
+
+      updated.auth = updated.auth || {};
+      updated.auth.portal_url = document.getElementById('portal_url').value.trim();
+      updated.auth.http = updated.auth.http || {};
+      updated.auth.http.action_url = document.getElementById('action_url').value.trim();
+      updated.auth.http.method = document.getElementById('method').value;
+      updated.auth.http.params = params;
+
+      return updated;
+    }
+
+    async function saveConfig() {
+      const payload = collectForm();
+      const btn = document.getElementById('btn-save');
+      btn.innerText = '正在保存...';
+      try {
+        const res = await fetch('/api/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if (res.ok) {
+          showBanner('✅ 配置文件已成功保存并立即热生效！', 'success');
+        } else {
+          showBanner('❌ 保存失败，请检查配置参数', 'error');
+        }
+      } catch (e) {
+        showBanner('❌ 请求失败: ' + e.message, 'error');
+      } finally {
+        btn.innerText = '💾 保存并立即生效';
+      }
+    }
+
+    async function testCurrentConfig() {
+      const payload = collectForm();
+      const btn = document.getElementById('btn-test');
+      btn.innerText = '正在测试认证...';
+      try {
+        const res = await fetch('/api/test', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const result = await res.json();
+        if (result.success) {
+          showBanner(`🎉 认证有效！网关返回成功 (HTTP ${result.status_code}): ${result.message}`, 'success');
+        } else {
+          showBanner(`⚠️ 认证未通过 (HTTP ${result.status_code}): ${result.message}`, 'error');
+        }
+      } catch (e) {
+        showBanner('❌ 测试失败: ' + e.message, 'error');
+      } finally {
+        btn.innerText = '🧪 一键诊断与联通性测试';
+      }
+    }
+
+    function showBanner(msg, type) {
+      const b = document.getElementById('alert-banner');
+      b.className = 'banner ' + type;
+      b.innerText = msg;
+      b.style.display = 'block';
+      setTimeout(() => { b.style.display = 'none'; }, 6000);
+    }
+  </script>
+</body>
+</html>
