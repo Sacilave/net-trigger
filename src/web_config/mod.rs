@@ -7,8 +7,8 @@
 //! 4. 支持 cURL 一键智能导入、宏参数插入、一键联通性测试与配置热持久化；
 //! 5. 空闲 5 分钟后自动销毁关闭 Socket，内存立即回归 1.5MB 纯净待机态。
 
-use crate::auth::http_client::{execute_http_auth, AuthResult};
-use crate::config::{Config, MacroContext};
+use crate::auth::AuthResult;
+use crate::config::Config;
 use crate::utils::fs::get_config_path;
 use std::fs;
 use std::io::{Read, Write};
@@ -151,12 +151,7 @@ fn handle_http_client(mut stream: TcpStream, cached_config: &mut Config) {
     } else if method == "POST" && path == "/api/test" {
         if let Some(body) = extract_http_body(&request_str) {
             if let Ok(temp_cfg) = parse_json_to_config(body, cached_config) {
-                let ctx = MacroContext::build(&temp_cfg);
-                let action_url = temp_cfg.get_expanded_action_url(&ctx);
-                let params = temp_cfg.get_expanded_params_with_ctx(&ctx);
-
-                let auth_res: AuthResult =
-                    execute_http_auth(&temp_cfg.auth.http, &action_url, &params);
+                let auth_res: AuthResult = crate::auth::AuthExecutor::execute(&temp_cfg);
                 let result_json = format!(
                     "{{\"success\":{},\"status_code\":{},\"message\":\"{}\"}}",
                     auth_res.success,
@@ -208,10 +203,11 @@ fn toml_to_json_str(config: &Config) -> String {
     }
 
     format!(
-        r#"{{"general":{{"profile":"{}","silent_mode":{},"allow_browser_fallback":{}}},"auth":{{"portal_url":"{}","http":{{"action_url":"{}","method":"{}","params":{{{}}}}}}}}}"#,
+        r#"{{"general":{{"profile":"{}","silent_mode":{},"allow_browser_fallback":{}}},"auth":{{"mode":"{}","portal_url":"{}","http":{{"action_url":"{}","method":"{}","params":{{{}}}}}}}}}"#,
         config.general.profile,
         config.general.silent_mode,
         config.general.allow_browser_fallback,
+        config.auth.mode,
         escape_json_str(&config.auth.portal_url),
         escape_json_str(&config.auth.http.action_url),
         config.auth.http.method,
@@ -224,6 +220,9 @@ fn parse_json_to_config(json: &str, fallback: &Config) -> Result<Config, ()> {
     // 极轻量字段提取，无需引入巨大 serde_json
     let mut updated = fallback.clone();
 
+    if let Some(mode) = extract_json_value(json, "mode") {
+        updated.auth.mode = mode;
+    }
     if let Some(profile) = extract_json_value(json, "profile") {
         updated.general.profile = profile;
     }
@@ -294,11 +293,14 @@ mod tests {
 
     #[test]
     fn test_json_conversion() {
-        let cfg = Config::default();
+        let mut cfg = Config::default();
+        cfg.auth.mode = "browser".to_string();
         let json = toml_to_json_str(&cfg);
         assert!(json.contains("\"profile\":\"gaming\""));
+        assert!(json.contains("\"mode\":\"browser\""));
 
         let parsed = parse_json_to_config(&json, &cfg).unwrap();
         assert_eq!(parsed.general.profile, "gaming");
+        assert_eq!(parsed.auth.mode, "browser");
     }
 }

@@ -3,355 +3,464 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>NetTrigger 配置中心</title>
+  <title>NetTrigger 设置</title>
   <style>
     :root {
-      --bg: #0f172a;
-      --card-bg: rgba(30, 41, 59, 0.7);
-      --border: rgba(255, 255, 255, 0.1);
-      --accent: #38bdf8;
-      --accent-glow: rgba(56, 189, 248, 0.2);
-      --text: #f8fafc;
-      --text-muted: #94a3b8;
-      --success: #22c55e;
+      --bg: #0b0f19;
+      --surface: #121826;
+      --surface-elevated: #1a2236;
+      --border: rgba(255, 255, 255, 0.08);
+      --border-focus: #3b82f6;
+      --text: #f3f4f6;
+      --text-secondary: #9ca3af;
+      --text-muted: #6b7280;
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --success: #10b981;
       --danger: #ef4444;
-      --warning: #f59e0b;
+      --radius: 8px;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      background: radial-gradient(circle at top right, #1e1b4b, var(--bg));
+      background-color: var(--bg);
       color: var(--text);
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", sans-serif;
       min-height: 100vh;
       display: flex;
       justify-content: center;
-      padding: 30px 16px;
+      padding: 36px 16px;
+      -webkit-font-smoothing: antialiased;
     }
-    .container {
+    .wrapper {
       width: 100%;
-      max-width: 820px;
+      max-width: 640px;
       display: flex;
       flex-direction: column;
       gap: 20px;
     }
+    /* 顶部导航 */
     header {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      border-bottom: 1px solid var(--border);
-      padding-bottom: 16px;
+      padding-bottom: 8px;
     }
-    .logo-group {
+    .brand {
       display: flex;
       align-items: center;
       gap: 12px;
     }
-    .logo-badge {
-      width: 40px;
-      height: 40px;
-      background: linear-gradient(135deg, #0284c7, #38bdf8);
-      border-radius: 10px;
+    .brand-icon {
+      width: 32px;
+      height: 32px;
+      background: var(--surface-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 20px;
-      box-shadow: 0 0 20px var(--accent-glow);
+      color: #60a5fa;
     }
-    h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }
-    .status-badge {
-      font-size: 13px;
-      padding: 6px 14px;
-      border-radius: 20px;
-      background: rgba(34, 197, 94, 0.15);
-      border: 1px solid rgba(34, 197, 94, 0.3);
-      color: var(--success);
-      display: flex;
+    h1 {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text);
+      letter-spacing: -0.3px;
+    }
+    .subtitle {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+    .status-pill {
+      display: inline-flex;
       align-items: center;
       gap: 6px;
+      padding: 4px 10px;
+      background: rgba(16, 185, 129, 0.1);
+      border: 1px solid rgba(16, 185, 129, 0.2);
+      border-radius: 9999px;
+      font-size: 12px;
+      color: var(--success);
+      font-weight: 500;
     }
     .status-dot {
-      width: 8px;
-      height: 8px;
+      width: 6px;
+      height: 6px;
       border-radius: 50%;
-      background: var(--success);
-      box-shadow: 0 0 8px var(--success);
+      background: currentColor;
     }
-    .card {
-      background: var(--card-bg);
-      backdrop-filter: blur(12px);
+    /* 分段选择器 Segmented Control */
+    .segmented-control {
+      display: flex;
+      background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 20px;
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+      padding: 3px;
+      border-radius: 10px;
+      gap: 4px;
     }
-    .card-title {
-      font-size: 15px;
-      font-weight: 600;
-      color: var(--accent);
-      margin-bottom: 14px;
+    .segment-btn {
+      flex: 1;
       display: flex;
       align-items: center;
-      justify-content: space-between;
-    }
-    .preset-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 12px;
-    }
-    .preset-card {
-      border: 1px solid var(--border);
-      background: rgba(15, 23, 42, 0.5);
-      border-radius: 10px;
-      padding: 14px;
+      justify-content: center;
+      gap: 8px;
+      padding: 9px 14px;
+      background: transparent;
+      border: none;
+      color: var(--text-secondary);
+      font-size: 13px;
+      font-weight: 500;
+      border-radius: 7px;
       cursor: pointer;
-      transition: all 0.2s;
+      transition: all 0.15s ease;
     }
-    .preset-card:hover { border-color: var(--accent); }
-    .preset-card.active {
-      border-color: var(--accent);
-      background: rgba(56, 189, 248, 0.1);
-      box-shadow: 0 0 15px var(--accent-glow);
+    .segment-btn.active {
+      background: var(--surface-elevated);
+      color: var(--text);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
     }
-    .preset-name { font-weight: 600; font-size: 14px; margin-bottom: 4px; display: flex; align-items: center; gap: 6px; }
-    .preset-desc { font-size: 12px; color: var(--text-muted); line-height: 1.4; }
+    /* 卡片面板 */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
     .form-group {
       display: flex;
       flex-direction: column;
       gap: 6px;
-      margin-bottom: 14px;
     }
-    label { font-size: 13px; font-weight: 500; color: #cbd5e1; }
-    input[type="text"], input[type="password"], textarea, select {
-      background: rgba(15, 23, 42, 0.8);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 10px 12px;
-      color: #fff;
+    label {
       font-size: 13px;
-      font-family: inherit;
+      font-weight: 500;
+      color: var(--text);
+    }
+    .help-text {
+      font-size: 12px;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+    input[type="text"], input[type="password"], textarea, select {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 9px 12px;
+      color: var(--text);
+      font-size: 13px;
       outline: none;
-      transition: border 0.2s;
+      transition: border-color 0.15s ease;
+      font-family: inherit;
     }
     input:focus, textarea:focus, select:focus {
-      border-color: var(--accent);
-      box-shadow: 0 0 10px var(--accent-glow);
+      border-color: var(--border-focus);
     }
-    .macro-bar {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-      margin-top: 4px;
+    .row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
     }
-    .macro-chip {
-      font-size: 11px;
-      background: rgba(56, 189, 248, 0.15);
-      color: var(--accent);
-      border: 1px solid rgba(56, 189, 248, 0.3);
-      padding: 3px 8px;
-      border-radius: 6px;
+    /* 折叠抽屉 */
+    details {
+      border-top: 1px solid var(--border);
+      padding-top: 12px;
+    }
+    summary {
+      font-size: 12px;
+      color: var(--text-secondary);
       cursor: pointer;
       user-select: none;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      outline: none;
+    }
+    summary:hover { color: var(--text); }
+    .details-content {
+      padding-top: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    /* 运行档位单选行 */
+    .profile-selector {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+    .profile-pill {
+      border: 1px solid var(--border);
+      background: var(--bg);
+      padding: 8px;
+      border-radius: var(--radius);
+      text-align: center;
+      cursor: pointer;
       transition: all 0.15s;
     }
-    .macro-chip:hover {
-      background: var(--accent);
-      color: #0f172a;
+    .profile-pill:hover { border-color: rgba(255, 255, 255, 0.2); }
+    .profile-pill.active {
+      border-color: var(--primary);
+      background: rgba(37, 99, 235, 0.08);
+      color: #93c5fd;
     }
-    .import-box {
-      border: 1px dashed var(--accent);
-      background: rgba(56, 189, 248, 0.05);
-      border-radius: 10px;
-      padding: 12px;
-      margin-bottom: 14px;
-    }
-    .btn-row {
+    .profile-pill-title { font-size: 12px; font-weight: 500; }
+    .profile-pill-desc { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+    /* 复选框行 */
+    .checkbox-row {
       display: flex;
-      justify-content: flex-end;
-      gap: 12px;
-      margin-top: 10px;
+      flex-direction: column;
+      gap: 10px;
+      padding-top: 4px;
     }
-    button {
-      padding: 10px 20px;
-      border-radius: 8px;
+    .checkbox-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
       font-size: 13px;
-      font-weight: 600;
+      color: var(--text-secondary);
       cursor: pointer;
+    }
+    .checkbox-label input { width: auto; cursor: pointer; }
+    /* 底部操作条 */
+    .actions-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-top: 6px;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 9px 16px;
+      border-radius: var(--radius);
+      font-size: 13px;
+      font-weight: 500;
       border: none;
-      transition: all 0.2s;
+      cursor: pointer;
+      transition: all 0.15s;
     }
     .btn-secondary {
-      background: rgba(255, 255, 255, 0.08);
-      color: #cbd5e1;
+      background: var(--surface-elevated);
+      color: var(--text);
+      border: 1px solid var(--border);
     }
-    .btn-secondary:hover { background: rgba(255, 255, 255, 0.15); }
+    .btn-secondary:hover { background: rgba(255, 255, 255, 0.08); }
     .btn-primary {
-      background: linear-gradient(135deg, #0284c7, #38bdf8);
-      color: #0f172a;
-      box-shadow: 0 0 15px var(--accent-glow);
+      background: var(--primary);
+      color: #fff;
     }
-    .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
-    .banner {
+    .btn-primary:hover { background: var(--primary-hover); }
+    /* 提示横幅 */
+    .notice {
       display: none;
-      padding: 12px;
-      border-radius: 8px;
       font-size: 13px;
-      margin-bottom: 10px;
-      animation: fadeIn 0.3s ease;
+      padding: 10px 14px;
+      border-radius: var(--radius);
+      line-height: 1.4;
+      animation: fadeIn 0.2s ease;
     }
-    .banner.success { background: rgba(34, 197, 94, 0.15); border: 1px solid var(--success); color: #86efac; }
-    .banner.error { background: rgba(239, 68, 68, 0.15); border: 1px solid var(--danger); color: #fca5a5; }
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+    .notice.success {
+      background: rgba(16, 185, 129, 0.12);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      color: #6ee7b7;
+    }
+    .notice.error {
+      background: rgba(239, 68, 68, 0.12);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      color: #fca5a5;
+    }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; transform: translateY(0); } }
   </style>
 </head>
 <body>
-  <div class="container">
+  <div class="wrapper">
+    <!-- 顶部状态栏 -->
     <header>
-      <div class="logo-group">
-        <div class="logo-badge">⚡</div>
+      <div class="brand">
+        <div class="brand-icon">
+          <!-- 统一线性 SVG: Zap 图标 -->
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+          </svg>
+        </div>
         <div>
-          <h1>NetTrigger 控制中心</h1>
-          <p style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">原生极轻量 · 0延迟感知 · 电竞级静默认证守护</p>
+          <h1>NetTrigger 设置</h1>
+          <div class="subtitle">网络事件自动化感知与无感重连守护</div>
         </div>
       </div>
-      <div class="status-badge" id="net-badge">
+      <div class="status-pill">
         <div class="status-dot"></div>
-        <span id="net-status-text">守护就绪</span>
+        <span id="header-status">守护中</span>
       </div>
     </header>
 
-    <div id="alert-banner" class="banner"></div>
+    <div id="msg-box" class="notice"></div>
 
-    <!-- 运行档位预设 -->
+    <!-- 模式分段选择器 -->
+    <div class="segmented-control">
+      <button type="button" class="segment-btn active" id="tab-browser" onclick="switchMode('browser')">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="2" y1="12" x2="22" y2="12"></line>
+          <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+        </svg>
+        网页自动登录 (记住密码)
+      </button>
+      <button type="button" class="segment-btn" id="tab-http" onclick="switchMode('http')">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect>
+          <rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect>
+          <line x1="6" y1="6" x2="6.01" y2="6"></line>
+          <line x1="6" y1="18" x2="6.01" y2="18"></line>
+        </svg>
+        后台静默登录 (游戏免切屏)
+      </button>
+    </div>
+
+    <!-- 主表单卡片 -->
     <div class="card">
-      <div class="card-title">
-        <span>⚡ 场景运行档位 (Profile)</span>
-        <span style="font-size: 12px; color: var(--text-muted); font-weight: normal;">底层 CPU 0.00% | 内存 &lt; 2MB</span>
+      <!-- 模式 1：网页自动登录 (极简，只需填网址) -->
+      <div id="panel-browser">
+        <div class="form-group">
+          <label for="portal_url">校园网 / 认证登录网址</label>
+          <input type="text" id="portal_url" placeholder="例如: http://10.10.1.1/ 或 http://portal.univ.edu/">
+          <div class="help-text">
+            检测到掉线或拦截时，将自动访问该网址，由浏览器记住的密码快速完成登录。<br>
+            <b>无需在此填写任何账号和密码</b>，适合已在 Edge/Chrome 中勾选了“记住密码”的校园网。
+          </div>
+        </div>
       </div>
-      <div class="preset-grid">
-        <div class="preset-card active" onclick="setProfile('gaming')" id="p-gaming">
-          <div class="preset-name">🎮 电竞极速档</div>
-          <div class="preset-desc">50ms 瞬时防抖，15s 心跳，强制纯静默，打游戏绝不切屏弹窗。</div>
+
+      <!-- 模式 2：后台静默模拟登录 (需配置账号密码) -->
+      <div id="panel-http" style="display: none; flex-direction: column; gap: 14px;">
+        <div class="form-group">
+          <label for="action_url">登录接口提交地址 (Action URL)</label>
+          <input type="text" id="action_url" placeholder="http://portal.univ.edu/api/login">
         </div>
-        <div class="preset-card" onclick="setProfile('balanced')" id="p-balanced">
-          <div class="preset-name">🍃 平衡推荐档</div>
-          <div class="preset-desc">150ms 黄金防抖，45s 心跳，综合网络与无线信道最佳平衡。</div>
+
+        <div class="row">
+          <div class="form-group">
+            <label for="username">用户名 / 学号</label>
+            <input type="text" id="username" placeholder="学号或宽带账号">
+          </div>
+          <div class="form-group">
+            <label for="password">认证密码</label>
+            <input type="password" id="password" placeholder="认证密码">
+          </div>
         </div>
-        <div class="preset-card" onclick="setProfile('power_save')" id="p-power_save">
-          <div class="preset-name">🔋 省电办公档</div>
-          <div class="preset-desc">500ms 宽限防抖，90s 心跳，极限节省电池，适合图书馆与长续航。</div>
+
+        <!-- 进阶折叠：cURL 智能解析与自定义参数 -->
+        <details>
+          <summary>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
+            进阶选项：F12 cURL 一键解析与自定义参数
+          </summary>
+          <div class="details-content">
+            <div class="form-group">
+              <label>从浏览器 cURL 快速导入</label>
+              <textarea id="curl-input" rows="2" placeholder="在登录页 F12 -> Network -> 右键登录请求 -> Copy as cURL 粘贴于此"></textarea>
+              <div style="text-align: right; margin-top: 4px;">
+                <button type="button" class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px;" onclick="parseCurl()">自动提取填充</button>
+              </div>
+            </div>
+
+            <div class="row">
+              <div class="form-group">
+                <label for="method">请求方法</label>
+                <select id="method">
+                  <option value="POST">POST</option>
+                  <option value="GET">GET</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="extra_params">补充表单参数 (key=value)</label>
+                <input type="text" id="extra_params" placeholder="例如: domain=telecom&wlanuserip={ip}">
+              </div>
+            </div>
+          </div>
+        </details>
+      </div>
+
+      <!-- 偏好设置分层 (档位与免打扰) -->
+      <div style="border-top: 1px solid var(--border); padding-top: 14px; display: flex; flex-direction: column; gap: 12px;">
+        <div class="form-group">
+          <label>运行灵敏度</label>
+          <div class="profile-selector">
+            <div class="profile-pill active" id="p-gaming" onclick="selectProfile('gaming')">
+              <div class="profile-pill-title">电竞极速</div>
+              <div class="profile-pill-desc">50ms 瞬时防抖 · 强静默</div>
+            </div>
+            <div class="profile-pill" id="p-balanced" onclick="selectProfile('balanced')">
+              <div class="profile-pill-title">日常推荐</div>
+              <div class="profile-pill-desc">150ms 黄金平衡</div>
+            </div>
+            <div class="profile-pill" id="p-power_save" onclick="selectProfile('power_save')">
+              <div class="profile-pill-title">省电长续航</div>
+              <div class="profile-pill-desc">500ms 宽限 · 适合笔记本</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="checkbox-row">
+          <label class="checkbox-label">
+            <input type="checkbox" id="silent_mode" checked>
+            <span>静默模式：重连成功时不弹出 Windows 气泡通知</span>
+          </label>
         </div>
       </div>
     </div>
 
-    <!-- 智能 cURL 一键导入 -->
-    <div class="card">
-      <div class="card-title">
-        <span>🪄 智能一键导入 (F12 cURL 自动解析)</span>
-      </div>
-      <div class="import-box">
-        <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 6px;">
-          在浏览器登录页面按 <b>F12</b> ➔ 切换到 <b>Network(网络)</b> ➔ 点击登录 ➔ 右键登录请求 ➔ <b>Copy as cURL (bash 或 cmd)</b> 粘贴于此：
-        </div>
-        <textarea id="curl-input" rows="2" style="width:100%;" placeholder="在此粘贴 cURL 命令，点击一键自动解析填充..."></textarea>
-        <div style="margin-top: 8px; display: flex; justify-content: flex-end;">
-          <button class="btn-secondary" type="button" onclick="parseCurl()">✨ 一键解析并填入下方表单</button>
-        </div>
-      </div>
+    <!-- 底部操作栏 -->
+    <div class="actions-bar">
+      <button type="button" class="btn btn-secondary" id="btn-test" onclick="testConnection()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+        </svg>
+        测试连接
+      </button>
 
-      <!-- 核心配置参数表单 -->
-      <form id="config-form">
-        <div class="form-group">
-          <label>认证接口提交地址 (Action URL)</label>
-          <input type="text" id="action_url" required placeholder="http://portal.example.edu/api/login">
-        </div>
-
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
-          <div class="form-group">
-            <label>认证请求方式 (Method)</label>
-            <select id="method">
-              <option value="POST">POST (默认，最常见)</option>
-              <option value="GET">GET</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label>备用登录门户网页 (Portal URL)</label>
-            <input type="text" id="portal_url" placeholder="http://portal.example.edu/">
-          </div>
-        </div>
-
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
-          <div class="form-group">
-            <label>用户名 / 学号 (Username)</label>
-            <input type="text" id="username" placeholder="2023xxxx">
-          </div>
-          <div class="form-group">
-            <label>认证密码 (Password)</label>
-            <input type="password" id="password" placeholder="••••••••">
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label>表单参数 (自定义键值对 / 运营商代码 / 宏参数)</label>
-          <textarea id="extra_params" rows="3" placeholder="key=value&#10;domain=telecom&#10;wlanuserip={ip}"></textarea>
-          <div class="macro-bar">
-            <span style="font-size: 11px; color: var(--text-muted); align-self: center;">点击快速插入宏:</span>
-            <span class="macro-chip" onclick="insertMacro('{ip}')">{ip} 本机内网IP</span>
-            <span class="macro-chip" onclick="insertMacro('{mac}')">{mac} 物理MAC</span>
-            <span class="macro-chip" onclick="insertMacro('{time}')">{time} 毫秒时间戳</span>
-            <span class="macro-chip" onclick="insertMacro('{time_s}')">{time_s} 秒时间戳</span>
-          </div>
-        </div>
-
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 10px;">
-          <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
-            <input type="checkbox" id="silent_mode" checked>
-            <span>静默免打扰模式 (成功不弹通知气泡)</span>
-          </label>
-          <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
-            <input type="checkbox" id="allow_browser_fallback">
-            <span>允许失败拉起浏览器 (电竞场景建议关闭)</span>
-          </label>
-        </div>
-
-        <div class="btn-row">
-          <button type="button" class="btn-secondary" onclick="testCurrentConfig()" id="btn-test">🧪 一键诊断与联通性测试</button>
-          <button type="button" class="btn-primary" onclick="saveConfig()" id="btn-save">💾 保存并立即生效</button>
-        </div>
-      </form>
+      <button type="button" class="btn btn-primary" id="btn-save" onclick="saveSettings()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="20 6 9 17 4 12"></polyline>
+        </svg>
+        保存设置
+      </button>
     </div>
   </div>
 
   <script>
-    let currentConfig = null;
+    let activeMode = 'browser';
+    let activeProfile = 'gaming';
+    let fullConfig = {};
 
-    // 页面加载拉取当前配置
     window.addEventListener('DOMContentLoaded', async () => {
       try {
         const res = await fetch('/api/config');
         if (res.ok) {
-          currentConfig = await res.json();
-          renderForm(currentConfig);
+          fullConfig = await res.json();
+          initUI(fullConfig);
         }
       } catch (e) {
-        console.error("加载配置失败", e);
+        console.warn('获取配置失败', e);
       }
     });
 
-    function setProfile(p) {
-      document.querySelectorAll('.preset-card').forEach(c => c.classList.remove('active'));
-      const target = document.getElementById('p-' + p);
-      if (target) target.classList.add('active');
-      if (currentConfig && currentConfig.general) {
-        currentConfig.general.profile = p;
-      }
-    }
+    function initUI(cfg) {
+      const mode = (cfg.auth && cfg.auth.mode) || 'browser';
+      switchMode(mode);
 
-    function renderForm(cfg) {
-      if (cfg.general && cfg.general.profile) {
-        setProfile(cfg.general.profile);
-      }
+      const profile = (cfg.general && cfg.general.profile) || 'gaming';
+      selectProfile(profile);
+
       document.getElementById('silent_mode').checked = cfg.general ? cfg.general.silent_mode : true;
-      document.getElementById('allow_browser_fallback').checked = cfg.general ? cfg.general.allow_browser_fallback : false;
       document.getElementById('portal_url').value = (cfg.auth && cfg.auth.portal_url) || '';
 
       const http = (cfg.auth && cfg.auth.http) || {};
@@ -368,38 +477,53 @@
           extras.push(`${k}=${v}`);
         }
       }
-      document.getElementById('extra_params').value = extras.join('\n');
+      document.getElementById('extra_params').value = extras.join('&');
     }
 
-    function insertMacro(m) {
-      const area = document.getElementById('extra_params');
-      area.value += (area.value ? '\n' : '') + `param_name=${m}`;
-      area.focus();
+    function switchMode(mode) {
+      activeMode = mode;
+      document.querySelectorAll('.segment-btn').forEach(b => b.classList.remove('active'));
+      const activeBtn = document.getElementById('tab-' + mode);
+      if (activeBtn) activeBtn.classList.add('active');
+
+      const panelBrowser = document.getElementById('panel-browser');
+      const panelHttp = document.getElementById('panel-http');
+
+      if (mode === 'browser') {
+        panelBrowser.style.display = 'block';
+        panelHttp.style.display = 'none';
+      } else {
+        panelBrowser.style.display = 'none';
+        panelHttp.style.display = 'flex';
+      }
     }
 
-    // 智能 cURL 解析算法
+    function selectProfile(p) {
+      activeProfile = p;
+      document.querySelectorAll('.profile-pill').forEach(el => el.classList.remove('active'));
+      const target = document.getElementById('p-' + p);
+      if (target) target.classList.add('active');
+    }
+
     function parseCurl() {
       const text = document.getElementById('curl-input').value.trim();
       if (!text) return;
 
-      // 提取 URL
       const urlMatch = text.match(/curl\s+["']?([^"'\s]+)["']?/i) || text.match(/(?:'|")?(https?:\/\/[^\s"']+)/i);
       if (urlMatch) {
         document.getElementById('action_url').value = urlMatch[1];
       }
 
-      // 提取 Method
       if (text.includes('-X POST') || text.includes('--data') || text.includes('-d ')) {
         document.getElementById('method').value = 'POST';
       } else if (text.includes('-X GET')) {
         document.getElementById('method').value = 'GET';
       }
 
-      // 提取 Data
       const dataMatch = text.match(/(?:--data-raw|--data|-d)\s+['"]([^'"]+)['"]/);
       if (dataMatch) {
         const payload = dataMatch[1];
-        const lines = [];
+        const extras = [];
         payload.split('&').forEach(pair => {
           const [k, v] = pair.split('=');
           if (k) {
@@ -410,21 +534,31 @@
             } else if (decKey.toLowerCase().includes('pass') || decKey.toLowerCase().includes('pwd')) {
               document.getElementById('password').value = decVal;
             } else {
-              lines.push(`${decKey}=${decVal}`);
+              extras.push(`${decKey}=${decVal}`);
             }
           }
         });
-        if (lines.length > 0) {
-          document.getElementById('extra_params').value = lines.join('\n');
+        if (extras.length > 0) {
+          document.getElementById('extra_params').value = extras.join('&');
         }
       }
 
-      showBanner('✨ cURL 解析成功！已自动填充表单字段。', 'success');
+      showNotice('已成功从 cURL 提取参数并填入表单', 'success');
     }
 
-    function collectForm() {
-      const activeCard = document.querySelector('.preset-card.active');
-      const profile = activeCard ? activeCard.id.replace('p-', '') : 'gaming';
+    function collectPayload() {
+      const payload = fullConfig || {};
+      payload.general = payload.general || {};
+      payload.general.profile = activeProfile;
+      payload.general.silent_mode = document.getElementById('silent_mode').checked;
+
+      payload.auth = payload.auth || {};
+      payload.auth.mode = activeMode;
+      payload.auth.portal_url = document.getElementById('portal_url').value.trim();
+
+      payload.auth.http = payload.auth.http || {};
+      payload.auth.http.action_url = document.getElementById('action_url').value.trim();
+      payload.auth.http.method = document.getElementById('method').value;
 
       const params = {};
       const u = document.getElementById('username').value.trim();
@@ -432,35 +566,24 @@
       if (u) params['username'] = u;
       if (p) params['password'] = p;
 
-      const lines = document.getElementById('extra_params').value.split('\n');
-      lines.forEach(l => {
-        const trimmed = l.trim();
-        if (trimmed && trimmed.includes('=')) {
-          const idx = trimmed.indexOf('=');
-          const k = trimmed.substring(0, idx).trim();
-          const v = trimmed.substring(idx + 1).trim();
-          if (k) params[k] = v;
-        }
-      });
+      const extraStr = document.getElementById('extra_params').value.trim();
+      if (extraStr) {
+        extraStr.split('&').forEach(pair => {
+          const idx = pair.indexOf('=');
+          if (idx > 0) {
+            const k = pair.substring(0, idx).trim();
+            const v = pair.substring(idx + 1).trim();
+            if (k) params[k] = v;
+          }
+        });
+      }
+      payload.auth.http.params = params;
 
-      const updated = currentConfig || {};
-      updated.general = updated.general || {};
-      updated.general.profile = profile;
-      updated.general.silent_mode = document.getElementById('silent_mode').checked;
-      updated.general.allow_browser_fallback = document.getElementById('allow_browser_fallback').checked;
-
-      updated.auth = updated.auth || {};
-      updated.auth.portal_url = document.getElementById('portal_url').value.trim();
-      updated.auth.http = updated.auth.http || {};
-      updated.auth.http.action_url = document.getElementById('action_url').value.trim();
-      updated.auth.http.method = document.getElementById('method').value;
-      updated.auth.http.params = params;
-
-      return updated;
+      return payload;
     }
 
-    async function saveConfig() {
-      const payload = collectForm();
+    async function saveSettings() {
+      const payload = collectPayload();
       const btn = document.getElementById('btn-save');
       btn.innerText = '正在保存...';
       try {
@@ -470,46 +593,46 @@
           body: JSON.stringify(payload)
         });
         if (res.ok) {
-          showBanner('✅ 配置文件已成功保存并立即热生效！', 'success');
+          showNotice('设置已保存并立即生效', 'success');
         } else {
-          showBanner('❌ 保存失败，请检查配置参数', 'error');
+          showNotice('保存失败，请检查输入内容', 'error');
         }
       } catch (e) {
-        showBanner('❌ 请求失败: ' + e.message, 'error');
+        showNotice('网络错误: ' + e.message, 'error');
       } finally {
-        btn.innerText = '💾 保存并立即生效';
+        btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg> 保存设置`;
       }
     }
 
-    async function testCurrentConfig() {
-      const payload = collectForm();
+    async function testConnection() {
+      const payload = collectPayload();
       const btn = document.getElementById('btn-test');
-      btn.innerText = '正在测试认证...';
+      btn.innerText = '正在测试...';
       try {
         const res = await fetch('/api/test', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         });
-        const result = await res.json();
-        if (result.success) {
-          showBanner(`🎉 认证有效！网关返回成功 (HTTP ${result.status_code}): ${result.message}`, 'success');
+        const r = await res.json();
+        if (r.success) {
+          showNotice(`连通有效 (HTTP ${r.status_code})：${r.message}`, 'success');
         } else {
-          showBanner(`⚠️ 认证未通过 (HTTP ${result.status_code}): ${result.message}`, 'error');
+          showNotice(`未连通 (HTTP ${r.status_code})：${r.message}`, 'error');
         }
       } catch (e) {
-        showBanner('❌ 测试失败: ' + e.message, 'error');
+        showNotice('测试失败: ' + e.message, 'error');
       } finally {
-        btn.innerText = '🧪 一键诊断与联通性测试';
+        btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg> 测试连接`;
       }
     }
 
-    function showBanner(msg, type) {
-      const b = document.getElementById('alert-banner');
-      b.className = 'banner ' + type;
-      b.innerText = msg;
-      b.style.display = 'block';
-      setTimeout(() => { b.style.display = 'none'; }, 6000);
+    function showNotice(text, type) {
+      const box = document.getElementById('msg-box');
+      box.className = 'notice ' + type;
+      box.innerText = text;
+      box.style.display = 'block';
+      setTimeout(() => { box.style.display = 'none'; }, 5000);
     }
   </script>
 </body>

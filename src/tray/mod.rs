@@ -43,11 +43,11 @@ impl SystemTrayManager {
     pub fn new(app_name: &str, is_silent: bool) -> Result<Self, String> {
         let menu = Menu::new();
 
-        let item_manual_check = MenuItem::new("⚡ 立即检测并重新认证", true, None);
-        let item_test_config = MenuItem::new("🧪 一键测试当前认证配置", true, None);
-        let item_open_portal = MenuItem::new("🌐 打开网络认证网页 (Browser)", true, None);
-        let item_open_web_config = MenuItem::new("⚙️ 可视化配置中心 (Web)", true, None);
-        let item_edit_config = MenuItem::new("📝 直接编辑 config.toml", true, None);
+        let item_manual_check = MenuItem::new("⚡ 立即重新连接", true, None);
+        let item_test_config = MenuItem::new("🧪 测试网络连接", true, None);
+        let item_open_portal = MenuItem::new("🌐 打开登录网页", true, None);
+        let item_open_web_config = MenuItem::new("⚙️ 设置", true, None);
+        let item_edit_config = MenuItem::new("📝 高级：打开配置文件", true, None);
 
         let is_auto = autostart::is_autostart_enabled();
         let autostart_item = CheckMenuItem::new("开机自启动", true, is_auto, None);
