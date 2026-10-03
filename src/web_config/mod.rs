@@ -165,6 +165,18 @@ fn handle_http_client(
             resp_body
         );
         let _ = stream.write_all(resp.as_bytes());
+    } else if method == "POST" && path == "/api/open_config_file" {
+        let config_file = get_config_path();
+        let _ = std::process::Command::new("notepad.exe")
+            .arg(config_file)
+            .spawn();
+        let resp_body = "{\"success\":true}";
+        let resp = format!(
+            "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+            resp_body.len(),
+            resp_body
+        );
+        let _ = stream.write_all(resp.as_bytes());
     } else if method == "POST" && path == "/api/test" {
         if let Some(body) = extract_http_body(&request_str) {
             let parse_result: Result<Config, _> = serde_json::from_str(body)

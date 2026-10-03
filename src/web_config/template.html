@@ -420,12 +420,24 @@
 
     <!-- 底部操作栏 -->
     <div class="actions-bar">
-      <button type="button" class="btn btn-secondary" id="btn-test" onclick="testConnection()">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
-        </svg>
-        测试连接
-      </button>
+      <div style="display: flex; gap: 8px;">
+        <button type="button" class="btn btn-secondary" id="btn-test" onclick="testConnection()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+          </svg>
+          测试连接
+        </button>
+        <button type="button" class="btn btn-secondary" id="btn-file" onclick="openConfigFile()" title="使用系统文本编辑器直接编辑本地 config.toml">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+            <line x1="16" y1="13" x2="8" y2="13"></line>
+            <line x1="16" y1="17" x2="8" y2="17"></line>
+            <polyline points="10 9 9 9 8 9"></polyline>
+          </svg>
+          打开本地配置文件
+        </button>
+      </div>
 
       <button type="button" class="btn btn-primary" id="btn-save" onclick="saveSettings()">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -624,6 +636,19 @@
         showNotice('测试失败: ' + e.message, 'error');
       } finally {
         btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg> 测试连接`;
+      }
+    }
+
+    async function openConfigFile() {
+      try {
+        const res = await fetch('/api/open_config_file', { method: 'POST' });
+        if (res.ok) {
+          showNotice('已在系统文本编辑器中打开 config.toml', 'success');
+        } else {
+          showNotice('无法打开配置文件', 'error');
+        }
+      } catch (e) {
+        showNotice('请求失败: ' + e.message, 'error');
       }
     }
 

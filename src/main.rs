@@ -112,17 +112,8 @@ fn main() {
                     let s = fsm.snapshot();
                     tray_mgr.update_state(st, s.latency_ms, &app_name);
                 }
-                TrayAction::TestConfig => {
-                    // 后台一键诊断 (实时读取最新配置)
-                    let cfg = config::Config::load_or_create()
-                        .map(|(c, _)| c)
-                        .unwrap_or_else(|_| fsm.config().clone());
-                    std::thread::spawn(move || {
-                        let _ = auth::AuthExecutor::execute(&cfg);
-                    });
-                }
                 TrayAction::OpenPortal => {
-                    // 核心修复：优先实时重新从磁盘/内存获取最新 portal_url，绝不用过期的占位网址！
+                    // 核心逻辑：优先实时重新从磁盘获取最新 portal_url
                     let latest_cfg = config::Config::load_or_create()
                         .map(|(c, _)| c)
                         .unwrap_or_else(|_| fsm.config().clone());
@@ -136,12 +127,6 @@ fn main() {
                         .map(|(c, _)| c)
                         .unwrap_or_else(|_| fsm.config().clone());
                     let _ = web_config::launch_ephemeral_web_config(latest_cfg, Some(config_tx.clone()));
-                }
-                TrayAction::EditConfigFile => {
-                    let config_file = get_config_path();
-                    let _ = std::process::Command::new("notepad.exe")
-                        .arg(config_file)
-                        .spawn();
                 }
                 TrayAction::ToggleAutostart => {
                     let current_enabled = tray::autostart::is_autostart_enabled();

@@ -16,10 +16,8 @@ use tray_icon::{Icon, TrayIcon, TrayIconBuilder};
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TrayAction {
     ManualCheck,
-    TestConfig,
     OpenPortal,
     OpenWebConfig,
-    EditConfigFile,
     ToggleAutostart,
     ToggleSilentMode,
     Quit,
@@ -31,10 +29,8 @@ pub struct SystemTrayManager {
     autostart_item: CheckMenuItem,
     silent_item: CheckMenuItem,
     item_manual_check: MenuItem,
-    item_test_config: MenuItem,
     item_open_portal: MenuItem,
     item_open_web_config: MenuItem,
-    item_edit_config: MenuItem,
     item_quit: MenuItem,
 }
 
@@ -43,25 +39,21 @@ impl SystemTrayManager {
     pub fn new(app_name: &str, is_silent: bool) -> Result<Self, String> {
         let menu = Menu::new();
 
-        let item_manual_check = MenuItem::new("⚡ 立即重新连接", true, None);
-        let item_test_config = MenuItem::new("🧪 测试网络连接", true, None);
+        let item_manual_check = MenuItem::new("⚡ 立即重连", true, None);
         let item_open_portal = MenuItem::new("🌐 打开登录网页", true, None);
         let item_open_web_config = MenuItem::new("⚙️ 设置", true, None);
-        let item_edit_config = MenuItem::new("📝 高级：打开配置文件", true, None);
 
         let is_auto = autostart::is_autostart_enabled();
         let autostart_item = CheckMenuItem::new("开机自启动", true, is_auto, None);
-        let silent_item = CheckMenuItem::new("静默模式 (游戏免打扰)", true, is_silent, None);
+        let silent_item = CheckMenuItem::new("静默模式 (免打扰)", true, is_silent, None);
 
-        let item_quit = MenuItem::new("🚪 退出 NetTrigger", true, None);
+        let item_quit = MenuItem::new("退出", true, None);
 
-        // 组装上下文菜单
+        // 组装极简无冗余的上下文菜单
         let _ = menu.append(&item_manual_check);
-        let _ = menu.append(&item_test_config);
         let _ = menu.append(&item_open_portal);
         let _ = menu.append(&PredefinedMenuItem::separator());
         let _ = menu.append(&item_open_web_config);
-        let _ = menu.append(&item_edit_config);
         let _ = menu.append(&PredefinedMenuItem::separator());
         let _ = menu.append(&autostart_item);
         let _ = menu.append(&silent_item);
@@ -83,10 +75,8 @@ impl SystemTrayManager {
             autostart_item,
             silent_item,
             item_manual_check,
-            item_test_config,
             item_open_portal,
             item_open_web_config,
-            item_edit_config,
             item_quit,
         })
     }
@@ -126,14 +116,10 @@ impl SystemTrayManager {
         if let Ok(event) = MenuEvent::receiver().try_recv() {
             if event.id == self.item_manual_check.id() {
                 return Some(TrayAction::ManualCheck);
-            } else if event.id == self.item_test_config.id() {
-                return Some(TrayAction::TestConfig);
             } else if event.id == self.item_open_portal.id() {
                 return Some(TrayAction::OpenPortal);
             } else if event.id == self.item_open_web_config.id() {
                 return Some(TrayAction::OpenWebConfig);
-            } else if event.id == self.item_edit_config.id() {
-                return Some(TrayAction::EditConfigFile);
             } else if event.id == self.autostart_item.id() {
                 return Some(TrayAction::ToggleAutostart);
             } else if event.id == self.silent_item.id() {
