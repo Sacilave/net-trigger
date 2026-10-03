@@ -1,0 +1,43 @@
+[package]
+name = "nettrigger"
+version = "0.1.0"
+edition = "2021"
+authors = ["Sacilave <sacilave@gmail.com>"]
+description = "原生极轻量、事件驱动（0延迟）的 Windows 网络状态感知与 Captive Portal 认证守护引擎"
+license = "MIT OR Apache-2.0"
+
+[[bin]]
+name = "NetTrigger"
+path = "src/main.rs"
+
+[dependencies]
+# 极轻量同步 HTTP 客户端 (无 async 运行时巨大常驻内存开销)
+ureq = { version = "2.12", default-features = false, features = ["tls"] }
+
+# 配置解析与序列化
+serde = { version = "1.0", features = ["derive"] }
+toml = "0.8"
+
+# Windows 原生轻量托盘支持
+tray-icon = "0.19"
+
+# Windows 原生 API 绑定 (细粒度按需引入)
+[dependencies.windows-sys]
+version = "0.59"
+features = [
+    "Win32_Foundation",
+    "Win32_System_Threading",
+    "Win32_NetworkManagement_IpHelper",
+    "Win32_NetworkManagement_Ndis",
+    "Win32_Networking_WinSock",
+    "Win32_System_Registry",
+    "Win32_UI_Shell",
+    "Win32_UI_WindowsAndMessaging",
+]
+
+[profile.release]
+opt-level = "z"     # 针对二进制体积进行极致优化
+lto = true          # 启用全局链接时优化
+codegen-units = 1   # 最大化内联与剪裁
+panic = "abort"     # 禁用栈展开以精简体积
+strip = true        # 剥离所有调试符号
