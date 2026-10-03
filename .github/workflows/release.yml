@@ -29,6 +29,15 @@ jobs:
       - name: 极限优化编译 (LTO & Strip)
         run: cargo build --release
 
+      - name: 安装 Inno Setup 打包引擎
+        shell: pwsh
+        run: |
+          choco install innosetup --no-progress -y
+          echo "C:\Program Files (x86)\Inno Setup 6" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      - name: 构建一键 Windows 安装包 (Setup.exe)
+        run: iscc installer/NetTrigger.iss
+
       - name: 整理发布产物与生成校验和
         id: package
         shell: pwsh
@@ -42,21 +51,24 @@ jobs:
           Copy-Item "config.example.toml" -Destination "$distDir/config.example.toml"
           Copy-Item "README.md" -Destination "$distDir/README.md"
           
-          # 3. 压缩为便携 Zip 压缩包
-          $zipName = "NetTrigger-windows-x64.zip"
-          Compress-Archive -Path "$distDir/*" -DestinationPath $zipName -Force
+          # 3. 压缩为便携 Zip 压缩包（仅含绿色便携文件）
+          $zipName = "NetTrigger-windows-x64-portable.zip"
+          Compress-Archive -Path "$distDir/NetTrigger.exe", "$distDir/config.example.toml", "$distDir/README.md" -DestinationPath $zipName -Force
           
-          # 4. 生成 SHA256 校验和
+          # 4. 生成所有产物的 SHA256 校验和
+          $setupHash = (Get-FileHash "$distDir/NetTrigger-Setup.exe" -Algorithm SHA256).Hash
           $exeHash = (Get-FileHash "$distDir/NetTrigger.exe" -Algorithm SHA256).Hash
           $zipHash = (Get-FileHash $zipName -Algorithm SHA256).Hash
           
           $checksumContent = @"
+          $setupHash  NetTrigger-Setup.exe
           $exeHash  NetTrigger.exe
           $zipHash  $zipName
           "@
           Set-Content -Path "checksums.txt" -Value $checksumContent
           
           Write-Host "打包成功:"
+          Write-Host "NetTrigger-Setup.exe SHA256: $setupHash"
           Write-Host "NetTrigger.exe SHA256: $exeHash"
           Write-Host "$zipName SHA256: $zipHash"
 
@@ -69,6 +81,7 @@ jobs:
           prerelease: false
           generate_release_notes: true
           files: |
+            dist/NetTrigger-Setup.exe
             target/release/NetTrigger.exe
-            NetTrigger-windows-x64.zip
+            NetTrigger-windows-x64-portable.zip
             checksums.txt
