@@ -167,18 +167,18 @@ fallback_expected_body = "Microsoft Connect Test"
 [auth]
 # 动作模式: "http" (静默模拟登录) 或 "browser" (唤起浏览器)
 mode = "http"
-# 校园网登录页面 URL (用于浏览器打开或 Referer)
-portal_url = "http://10.10.200.102/"
+# 校园网/公共网登录页面 URL (用于浏览器打开或 Referer)
+portal_url = "http://portal.example.edu/"
 
 # 仅当 mode = "http" 时生效的认证配置
 [auth.http]
 method = "POST"
-action_url = "http://10.10.200.102/drcom/login"
+action_url = "http://portal.example.edu/api/login"
 # 表单参数 (支持宏替换: {username}, {password})
 [auth.http.params]
-DDDDD = "your_student_id"
-upass = "your_password"
-0MKKey = "123456"
+username = "your_username"
+password = "your_password"
+operator = "default"
 
 [auth.http.headers]
 User-Agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
