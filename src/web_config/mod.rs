@@ -2,9 +2,9 @@
 //!
 //! 核心设计：
 //! 1. 纯标准库 `TcpListener` 实现，零大型 Web 框架依赖，平时 0% CPU、0 额外内存；
-//! 2. 仅在用户从托盘点击“配置中心”时临时唤起，随机分配未占用端口；
-//! 3. 原生调用默认浏览器打开内嵌的现代精致 Fluent / Tailwind UI；
-//! 4. 支持 cURL 一键智能导入、宏参数插入、一键联通性测试与配置热持久化；
+//! 2. 仅在用户从托盘点击“设置”时临时唤起，随机分配未占用端口；
+//! 3. 原生调用默认浏览器打开内嵌的现代精致 Fluent / SVG 线性控制中心；
+//! 4. 采用 serde_json 实现工业级参数序列化与反序列化，通过通道向主线程实时热同步；
 //! 5. 空闲 5 分钟后自动销毁关闭 Socket，内存立即回归 1.5MB 纯净待机态。
 
 use crate::auth::AuthResult;
@@ -14,6 +14,7 @@ use std::fs;
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::mpsc::Sender;
 use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
@@ -21,7 +22,10 @@ use std::time::Duration;
 pub const HTML_TEMPLATE: &str = include_str!("template.html");
 
 /// 启动瞬态 Web 配置服务，并在默认浏览器中唤起
-pub fn launch_ephemeral_web_config(current_config: Config) -> Result<u16, String> {
+pub fn launch_ephemeral_web_config(
+    current_config: Config,
+    on_config_saved: Option<Sender<Config>>,
+) -> Result<u16, String> {
     // 绑定回环随机端口
     let listener = TcpListener::bind("127.0.0.1:0")
         .map_err(|e| format!("绑定本地临时端口失败: {}", e))?;
@@ -67,7 +71,7 @@ pub fn launch_ephemeral_web_config(current_config: Config) -> Result<u16, String
                 match listener.accept() {
                     Ok((stream, _)) => {
                         idle_seconds = 0; // 重置空闲计时
-                        handle_http_client(stream, &mut cached_config);
+                        handle_http_client(stream, &mut cached_config, on_config_saved.as_ref());
                     }
                     Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
                         thread::sleep(Duration::from_millis(200));
@@ -85,7 +89,11 @@ pub fn launch_ephemeral_web_config(current_config: Config) -> Result<u16, String
     Ok(port)
 }
 
-fn handle_http_client(mut stream: TcpStream, cached_config: &mut Config) {
+fn handle_http_client(
+    mut stream: TcpStream,
+    cached_config: &mut Config,
+    on_save_tx: Option<&Sender<Config>>,
+) {
     let _ = stream.set_read_timeout(Some(Duration::from_millis(1500)));
     let mut buffer = [0u8; 8192];
     let n = match stream.read(&mut buffer) {
@@ -116,7 +124,8 @@ fn handle_http_client(mut stream: TcpStream, cached_config: &mut Config) {
         );
         let _ = stream.write_all(resp.as_bytes());
     } else if method == "GET" && path == "/api/config" {
-        let json_res = toml_to_json_str(cached_config);
+        let json_res = serde_json::to_string(cached_config)
+            .unwrap_or_else(|_| toml_to_json_str(cached_config));
         let resp = format!(
             "HTTP/1.1 200 OK\r\nContent-Type: application/json; charset=utf-8\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
             json_res.len(),
@@ -125,12 +134,20 @@ fn handle_http_client(mut stream: TcpStream, cached_config: &mut Config) {
         let _ = stream.write_all(resp.as_bytes());
     } else if method == "POST" && path == "/api/save" {
         if let Some(body) = extract_http_body(&request_str) {
-            if let Ok(new_cfg) = parse_json_to_config(body, cached_config) {
+            let parse_result: Result<Config, _> = serde_json::from_str(body)
+                .or_else(|_| parse_json_to_config(body, cached_config));
+
+            if let Ok(new_cfg) = parse_result {
                 *cached_config = new_cfg.clone();
-                // 序列化回 toml 并保存
+                // 1. 格式化序列化回 toml 并持久化保存到磁盘
                 if let Ok(toml_str) = toml::to_string_pretty(&new_cfg) {
                     let _ = fs::write(get_config_path(), toml_str);
                 }
+                // 2. 核心通道同步：通知主线程状态机即刻热更新！
+                if let Some(tx) = on_save_tx {
+                    let _ = tx.send(new_cfg);
+                }
+
                 let resp_body = "{\"success\":true}";
                 let resp = format!(
                     "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
@@ -150,7 +167,10 @@ fn handle_http_client(mut stream: TcpStream, cached_config: &mut Config) {
         let _ = stream.write_all(resp.as_bytes());
     } else if method == "POST" && path == "/api/test" {
         if let Some(body) = extract_http_body(&request_str) {
-            if let Ok(temp_cfg) = parse_json_to_config(body, cached_config) {
+            let parse_result: Result<Config, _> = serde_json::from_str(body)
+                .or_else(|_| parse_json_to_config(body, cached_config));
+
+            if let Ok(temp_cfg) = parse_result {
                 let auth_res: AuthResult = crate::auth::AuthExecutor::execute(&temp_cfg);
                 let result_json = format!(
                     "{{\"success\":{},\"status_code\":{},\"message\":\"{}\"}}",
@@ -195,7 +215,7 @@ fn escape_json_str(s: &str) -> String {
         .replace('\r', "")
 }
 
-/// 快速将 Config 转换为简易 JSON 返回给前端
+/// 快速将 Config 转换为简易 JSON 返回给前端 (兼容兜底)
 fn toml_to_json_str(config: &Config) -> String {
     let mut params_parts = Vec::new();
     for (k, v) in &config.auth.http.params {
@@ -215,9 +235,8 @@ fn toml_to_json_str(config: &Config) -> String {
     )
 }
 
-/// 将前端提交的简单 JSON 解析更新到 Config
+/// 将前端提交的简单 JSON 解析更新到 Config (轻量回退处理)
 fn parse_json_to_config(json: &str, fallback: &Config) -> Result<Config, ()> {
-    // 极轻量字段提取，无需引入巨大 serde_json
     let mut updated = fallback.clone();
 
     if let Some(mode) = extract_json_value(json, "mode") {
@@ -240,28 +259,6 @@ fn parse_json_to_config(json: &str, fallback: &Config) -> Result<Config, ()> {
     }
     if let Some(method) = extract_json_value(json, "method") {
         updated.auth.http.method = method;
-    }
-
-    // 提取 params 对象
-    if let Some(params_idx) = json.find("\"params\":{") {
-        let after = &json[params_idx + 9..];
-        if let Some(end_idx) = after.find('}') {
-            let params_slice = &after[..end_idx];
-            let mut new_params = std::collections::BTreeMap::new();
-            for item in params_slice.split(',') {
-                let parts: Vec<&str> = item.split(':').collect();
-                if parts.len() == 2 {
-                    let k = parts[0].trim().trim_matches('"');
-                    let v = parts[1].trim().trim_matches('"');
-                    if !k.is_empty() {
-                        new_params.insert(k.to_string(), v.to_string());
-                    }
-                }
-            }
-            if !new_params.is_empty() {
-                updated.auth.http.params = new_params;
-            }
-        }
     }
 
     Ok(updated)

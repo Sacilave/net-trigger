@@ -61,6 +61,7 @@ fn main() {
 
     // 5. 启动 Windows 原生 IP Helper 网络状态被动监听器
     let (net_tx, net_rx) = channel();
+    let (config_tx, config_rx) = channel::<Config>();
     let debounce_ms = config.general.effective_debounce_ms();
     let mut watcher_handle = match start_network_watcher(debounce_ms, net_tx) {
         Ok(handle) => handle,
@@ -78,7 +79,7 @@ fn main() {
     let snap = fsm.snapshot();
     tray_mgr.update_state(initial_state, snap.latency_ms, &app_name);
 
-    // 6. 顶层无损事件主循环 (消息泵 + 内核事件 + 心跳定时器)
+    // 6. 顶层无损事件主循环 (消息泵 + 内核事件 + 心跳定时器 + 配置热同步)
     let mut last_heartbeat = Instant::now();
 
     loop {
@@ -112,22 +113,29 @@ fn main() {
                     tray_mgr.update_state(st, s.latency_ms, &app_name);
                 }
                 TrayAction::TestConfig => {
-                    // 后台一键诊断
-                    let cfg = fsm.config().clone();
+                    // 后台一键诊断 (实时读取最新配置)
+                    let cfg = config::Config::load_or_create()
+                        .map(|(c, _)| c)
+                        .unwrap_or_else(|_| fsm.config().clone());
                     std::thread::spawn(move || {
-                        let ctx = config::MacroContext::build(&cfg);
-                        let url = cfg.get_expanded_action_url(&ctx);
-                        let params = cfg.get_expanded_params_with_ctx(&ctx);
-                        let _ = auth::http_client::execute_http_auth(&cfg.auth.http, &url, &params);
+                        let _ = auth::AuthExecutor::execute(&cfg);
                     });
                 }
                 TrayAction::OpenPortal => {
-                    let portal_url = fsm.config().auth.portal_url.clone();
-                    let _ = auth::browser::open_browser_portal(&portal_url, true, true);
+                    // 核心修复：优先实时重新从磁盘/内存获取最新 portal_url，绝不用过期的占位网址！
+                    let latest_cfg = config::Config::load_or_create()
+                        .map(|(c, _)| c)
+                        .unwrap_or_else(|_| fsm.config().clone());
+                    let portal_url = latest_cfg.auth.portal_url.trim();
+                    if !portal_url.is_empty() {
+                        let _ = auth::browser::open_browser_portal(portal_url, true, true);
+                    }
                 }
                 TrayAction::OpenWebConfig => {
-                    let current_cfg = fsm.config().clone();
-                    let _ = web_config::launch_ephemeral_web_config(current_cfg);
+                    let latest_cfg = config::Config::load_or_create()
+                        .map(|(c, _)| c)
+                        .unwrap_or_else(|_| fsm.config().clone());
+                    let _ = web_config::launch_ephemeral_web_config(latest_cfg, Some(config_tx.clone()));
                 }
                 TrayAction::EditConfigFile => {
                     let config_file = get_config_path();
@@ -157,7 +165,16 @@ fn main() {
             }
         }
 
-        // C. 处理 Windows 底层网卡变动事件（近乎 0 延迟响应）
+        // C. 处理配置热保存通知（Web 配置页保存后即刻热同步状态机与托盘）
+        while let Ok(new_cfg) = config_rx.try_recv() {
+            println!("⚡ 收到配置热保存，立即热同步状态机...");
+            fsm.update_config(new_cfg);
+            let st = fsm.on_network_changed();
+            let s = fsm.snapshot();
+            tray_mgr.update_state(st, s.latency_ms, &app_name);
+        }
+
+        // D. 处理 Windows 底层网卡变动事件（近乎 0 延迟响应）
         while let Ok(net_evt) = net_rx.try_recv() {
             if net_evt == NetworkEvent::NetworkChanged {
                 let st = fsm.on_network_changed();
