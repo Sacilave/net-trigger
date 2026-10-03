@@ -1,11 +1,20 @@
-# ==========================================
-# NetTrigger - Git 忽略规则规范
-# ==========================================
+# ==============================================================================
+# NetTrigger - 严格隐私与 Git 忽略规则规范
+# ==============================================================================
 
-# 1. 敏感配置与凭据 (绝对严禁提交)
+# 1. 核心敏感凭据与配置文件 (绝对严禁提交！)
+# 忽略任何层级下的真实配置文件
+**/config.toml
 config.toml
+config.*.toml
 *.local.toml
 *.secret.toml
+*.credentials.toml
+
+# 白名单保留公开的配置示例模板
+!config.example.toml
+
+# 凭据、私钥与环境配置
 .env
 .env.*
 *.pem
@@ -13,27 +22,40 @@ config.toml
 *.pfx
 *.p12
 *.cer
+*.crt
 credentials.*
 secrets.*
 
-# 2. Rust 编译产物
+# 抓包、诊断与包含密码的临时导入文件 (F12 导出防泄露)
+*.har
+*.pcap
+*.pcapng
+*.curl
+*.txt.bak
+*.toml.bak
+*.toml.old
+*.tmp
+
+# 2. Rust / Cargo 编译产物
 /target/
+**/target/
+Cargo.lock.bak
 **/*.rs.bk
 
-# 3. 日志与崩溃转储
+# 3. 运行日志与崩溃转储
 *.log
 logs/
 *.dmp
 *.dump
 
-# 4. 操作系统与临时文件
+# 4. 操作系统临时文件与缩略图
 Thumbs.db
 ehthumbs.db
 Desktop.ini
 $RECYCLE.BIN/
 .DS_Store
 
-# 5. IDE 与 编辑器配置
+# 5. IDE、编辑器与本地工作区
 .idea/
 .vscode/
 *.swp
@@ -42,7 +64,7 @@ $RECYCLE.BIN/
 *.sublime-project
 *.sublime-workspace
 
-# 6. AI 助手与本地环境隔离
+# 6. AI 编程助手与本地测试沙盒隔离
 .gemini/
 .antigravity/
 .agent/
