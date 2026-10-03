@@ -36,9 +36,13 @@ secrets.*
 *.toml.old
 *.tmp
 
-# 2. Rust / Cargo 编译产物
+# 2. Rust / Cargo 编译产物与本地发布包
 /target/
 **/target/
+/dist/
+dist/
+*.zip
+checksums.txt
 Cargo.lock.bak
 **/*.rs.bk
 
