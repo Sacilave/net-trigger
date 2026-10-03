@@ -27,14 +27,27 @@ pub const DEFAULT_CONFIG_TEMPLATE: &str = r#"# =================================
 # 托盘中显示的应用名称
 app_name = "NetTrigger"
 
-# 正常网络畅通时的探针心跳间隔（单位：秒，建议 30 ~ 60，避免浪费系统资源与电量）
+# 运行档位预设: "gaming" (电竞极速) | "balanced" (平衡推荐) | "power_save" (省电办公)
+# 预设会自动调节底层防抖与保活心跳频率，无需繁琐微调：
+#   - "gaming"    : 50ms 瞬时防抖，15s 心跳保活，绝不弹窗切屏
+#   - "balanced"  : 150ms 防抖，45s 心跳保活 (推荐)
+#   - "power_save": 500ms 防抖，90s 心跳保活
+profile = "gaming"
+
+# 正常网络畅通时的探针心跳间隔（单位：秒；若显式配置则优先覆盖 profile 默认值）
 heartbeat_interval_sec = 45
 
 # 是否开启 Windows 系统级网络变动监听（0 延迟即刻重连，强烈建议保持 true）
 enable_zero_latency_watcher = true
 
+# 网络物理层建立后的微防抖等待时间（毫秒，留空时跟随 profile）
+# debounce_ms = 50
+
 # 静默免打扰模式：true 时即使重连成功也不弹出系统通知，打游戏推荐开启
 silent_mode = true
+
+# 连续认证失败时是否允许拉起外部浏览器兜底（打游戏/全屏工作建议设为 false，彻底杜绝切屏夺焦）
+allow_browser_fallback = false
 
 # 连续失败时的最大退避等待时间（秒，防止频繁重发导致校园网封号或机房过载）
 max_backoff_sec = 60
@@ -156,26 +169,64 @@ pub struct GeneralConfig {
     #[serde(default = "default_app_name")]
     pub app_name: String,
 
+    #[serde(default = "default_profile")]
+    pub profile: String,
+
     #[serde(default = "default_heartbeat_interval_sec")]
     pub heartbeat_interval_sec: u64,
 
     #[serde(default = "default_true", alias = "enable_network_watcher")]
     pub enable_zero_latency_watcher: bool,
 
+    #[serde(default)]
+    pub debounce_ms: Option<u64>,
+
     #[serde(default = "default_true")]
     pub silent_mode: bool,
 
+    #[serde(default)]
+    pub allow_browser_fallback: bool,
+
     #[serde(default = "default_max_backoff_sec")]
     pub max_backoff_sec: u64,
+}
+
+impl GeneralConfig {
+    /// 计算实际生效的物理链路稳定防抖时间 (毫秒)
+    pub fn effective_debounce_ms(&self) -> u64 {
+        if let Some(ms) = self.debounce_ms {
+            return ms;
+        }
+        match self.profile.to_lowercase().as_str() {
+            "gaming" => 50,
+            "power_save" => 500,
+            _ => 150, // balanced
+        }
+    }
+
+    /// 计算实际生效的心跳保活探测周期 (秒)
+    pub fn effective_heartbeat_interval_sec(&self) -> u64 {
+        if self.heartbeat_interval_sec != default_heartbeat_interval_sec() {
+            return self.heartbeat_interval_sec;
+        }
+        match self.profile.to_lowercase().as_str() {
+            "gaming" => 15,
+            "power_save" => 90,
+            _ => 45, // balanced
+        }
+    }
 }
 
 impl Default for GeneralConfig {
     fn default() -> Self {
         Self {
             app_name: default_app_name(),
+            profile: default_profile(),
             heartbeat_interval_sec: default_heartbeat_interval_sec(),
             enable_zero_latency_watcher: default_true(),
+            debounce_ms: None,
             silent_mode: default_true(),
+            allow_browser_fallback: false,
             max_backoff_sec: default_max_backoff_sec(),
         }
     }
@@ -262,6 +313,9 @@ impl Default for HttpAuthConfig {
 // 默认值生成辅助函数
 fn default_app_name() -> String {
     "NetTrigger".to_string()
+}
+fn default_profile() -> String {
+    "gaming".to_string()
 }
 fn default_heartbeat_interval_sec() -> u64 {
     45
@@ -502,13 +556,35 @@ mod tests {
         assert!(cfg_res.is_ok(), "默认模板必须能够正常反序列化");
         if let Ok(cfg) = cfg_res {
             assert_eq!(cfg.general.app_name, "NetTrigger");
-            assert_eq!(cfg.general.heartbeat_interval_sec, 45);
+            assert_eq!(cfg.general.profile, "gaming");
+            assert_eq!(cfg.general.effective_debounce_ms(), 50);
+            assert_eq!(cfg.general.effective_heartbeat_interval_sec(), 15);
             assert!(cfg.general.enable_zero_latency_watcher);
             assert!(cfg.general.silent_mode);
+            assert!(!cfg.general.allow_browser_fallback);
             assert_eq!(cfg.probe.primary_url, "http://connect.rom.miui.com/generate_204");
             assert_eq!(cfg.auth.mode, "http");
             assert_eq!(cfg.auth.http.method, "POST");
         }
+    }
+
+    #[test]
+    fn test_profile_overrides() {
+        let mut cfg = GeneralConfig::default();
+        cfg.profile = "balanced".to_string();
+        assert_eq!(cfg.effective_debounce_ms(), 150);
+        assert_eq!(cfg.effective_heartbeat_interval_sec(), 45);
+
+        cfg.profile = "power_save".to_string();
+        assert_eq!(cfg.effective_debounce_ms(), 500);
+        assert_eq!(cfg.effective_heartbeat_interval_sec(), 90);
+
+        // 显式配置优先覆盖
+        cfg.debounce_ms = Some(88);
+        assert_eq!(cfg.effective_debounce_ms(), 88);
+
+        cfg.heartbeat_interval_sec = 25;
+        assert_eq!(cfg.effective_heartbeat_interval_sec(), 25);
     }
 
     #[test]

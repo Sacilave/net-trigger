@@ -1,6 +1,8 @@
+pub mod auth;
 pub mod config;
 pub mod probe;
 pub mod utils;
+pub mod watcher;
 
 fn main() {
     println!("NetTrigger starting...");
