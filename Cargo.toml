@@ -1,10 +1,11 @@
 [package]
 name = "nettrigger"
-version = "0.1.0"
+version = "1.0.0"
 edition = "2021"
 authors = ["Sacilave <sacilave@gmail.com>"]
+repository = "https://github.com/Sacilave/net-trigger"
 description = "原生极轻量、事件驱动（0延迟）的 Windows 网络状态感知与 Captive Portal 认证守护引擎"
-license = "MIT OR Apache-2.0"
+license = "CC-BY-NC-4.0"
 
 [[bin]]
 name = "NetTrigger"
