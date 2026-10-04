@@ -97,17 +97,17 @@ jobs:
           $x86ExeHash = (Get-FileHash $x86Exe -Algorithm SHA256).Hash
           $x86ZipHash = (Get-FileHash $x86Zip -Algorithm SHA256).Hash
           
-          $checksumContent = @"
-$x64ExeHash  $x64Exe
-$x64ZipHash  $x64Zip
-$x86ExeHash  $x86Exe
-$x86ZipHash  $x86Zip
-"@
+          $hashes = @(
+            "$x64ExeHash  $x64Exe",
+            "$x64ZipHash  $x64Zip",
+            "$x86ExeHash  $x86Exe",
+            "$x86ZipHash  $x86Zip"
+          )
           if ($setupExeItem) {
             $setupHash = (Get-FileHash "$distDir/$setupExe" -Algorithm SHA256).Hash
-            $checksumContent += "`n$setupHash  $setupExe"
+            $hashes += "$setupHash  $setupExe"
           }
-          Set-Content -Path "checksums.txt" -Value $checksumContent
+          $hashes | Set-Content -Path "checksums.txt"
           
           Write-Host "打包成功:"
           if ($setupExeItem) { Write-Host "$setupExe SHA256: $setupHash" }
