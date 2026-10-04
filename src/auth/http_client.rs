@@ -233,11 +233,19 @@ pub fn fetch_portal_redirect_via_lan(target_ip: &str) -> Option<String> {
     // 1. 优先提取 HTTP 30x Location 响应头 (包含当前动态 wlanuserip 与 nasip 等)
     for line in resp_str.lines() {
         let trimmed = line.trim();
-        if let Some(loc) = trimmed.strip_prefix("Location: ") {
-            return Some(loc.trim().to_string());
-        }
-        if let Some(loc) = trimmed.strip_prefix("location: ") {
-            return Some(loc.trim().to_string());
+        let loc_opt = if let Some(loc) = trimmed.strip_prefix("Location: ") {
+            Some(loc.trim())
+        } else if let Some(loc) = trimmed.strip_prefix("location: ") {
+            Some(loc.trim())
+        } else {
+            None
+        };
+        if let Some(loc) = loc_opt {
+            // 过滤外网直接访问 Cloudflare 等非劫持的跳转
+            if loc.starts_with("https://1.1.1.1") || loc.starts_with("http://1.1.1.1") {
+                continue;
+            }
+            return Some(loc.to_string());
         }
     }
 
@@ -258,7 +266,7 @@ pub fn fetch_portal_redirect_via_lan(target_ip: &str) -> Option<String> {
 
 /// 实时探测局域网并获取最新的动态 queryString (如 wlanuserip=...&wlanacname=...)
 pub fn get_fresh_ruijie_query_string() -> Option<String> {
-    for target in &["1.1.1.1", "123.123.123.123"] {
+    for target in &["1.1.1.1", "123.123.123.123", "114.114.114.114"] {
         if let Some(url) = fetch_portal_redirect_via_lan(target) {
             if let Some(q_pos) = url.find('?') {
                 let qs = &url[q_pos + 1..];
@@ -273,7 +281,7 @@ pub fn get_fresh_ruijie_query_string() -> Option<String> {
 
 /// 实时探测局域网并获取最新的动态登录页面 URL
 pub fn get_fresh_ruijie_portal_url() -> Option<String> {
-    for target in &["1.1.1.1", "123.123.123.123"] {
+    for target in &["1.1.1.1", "123.123.123.123", "114.114.114.114"] {
         if let Some(url) = fetch_portal_redirect_via_lan(target) {
             if url.contains("eportal") || url.contains("index.jsp") {
                 return Some(url);
@@ -281,6 +289,16 @@ pub fn get_fresh_ruijie_portal_url() -> Option<String> {
         }
     }
     None
+}
+
+/// 锐捷 SAM+ queryString 专用编码：仅替换 & 为 %2526、= 为 %253D
+///
+/// 锐捷 ePortal 的 queryString 不是标准 URL 编码！
+/// 浏览器 JS 实际执行的是 encodeURIComponent(encodeURIComponent(qs))，
+/// 但因为 qs 内容本身只含 [a-zA-Z0-9&=] 和已编码的 hex，
+/// 两次 encodeURIComponent 的实际效果等价于：& → %2526, = → %253D，其余字符不变。
+fn encode_ruijie_query_string(raw_qs: &str) -> String {
+    raw_qs.replace('&', "%2526").replace('=', "%253D")
 }
 
 /// 针对锐捷 RG-SAM+ / eportal 校园网的专属后台静默登录处理器
@@ -310,16 +328,31 @@ pub fn execute_ruijie_sam_auth(
         );
     }
 
-    let mut query_string = params.get("queryString").cloned().unwrap_or_default();
-    if let Some(q_pos) = query_string.find('?') {
-        query_string = query_string[q_pos + 1..].to_string();
+    let mut query_string = String::new();
+
+    // 核心策略：始终优先通过物理局域网网卡实时捕获当前 Wi-Fi 会话的最新 queryString
+    // 因为 queryString 中的 wlanuserip/nasip/mac 等参数是加密的会话级动态值，
+    // 每次 Wi-Fi 重连或 DHCP 重新分配后都会变化，静态缓存值必然导致"原ip与当前用户不一致"
+    if let Some(fresh_qs) = get_fresh_ruijie_query_string() {
+        query_string = fresh_qs;
     }
 
-    // 核心自动自愈：若 queryString 为空，直接通过物理局域网网卡发起极速 302 拦截探测，动态获取最新的真实 queryString
+    // 动态获取失败时，降级使用传入参数中的 queryString（来自探针捕获或配置文件）
     if query_string.is_empty() {
-        if let Some(fresh_qs) = get_fresh_ruijie_query_string() {
-            query_string = fresh_qs;
-        } else if let Some(q_pos) = action_url.find('?') {
+        if let Some(qs_param) = params.get("queryString") {
+            let mut qs = qs_param.clone();
+            if let Some(q_pos) = qs.find('?') {
+                qs = qs[q_pos + 1..].to_string();
+            }
+            if !qs.trim().is_empty() {
+                query_string = qs;
+            }
+        }
+    }
+
+    // 最后兜底：从 action_url 本身提取
+    if query_string.is_empty() {
+        if let Some(q_pos) = action_url.find('?') {
             let qs = &action_url[q_pos + 1..];
             if !qs.is_empty() {
                 query_string = qs.to_string();
@@ -336,79 +369,80 @@ pub fn execute_ruijie_sam_auth(
         .cloned()
         .unwrap_or_else(|| "false".to_string());
 
-    let enc_username = urlencoding_encode(&username);
-    let enc_password = urlencoding_encode(&password);
-    let enc_service = urlencoding_encode(&service);
-    let enc_operator_pwd = urlencoding_encode(&operator_pwd);
-    let enc_operator_user_id = urlencoding_encode(&operator_user_id);
-    let enc_validcode = urlencoding_encode(&validcode);
+    // 锐捷 SAM+ 的 queryString 必须进行专用编码：仅 & → %2526, = → %253D
+    let enc_query_string = encode_ruijie_query_string(&query_string);
 
-    // 锐捷 SAM+ 的 queryString 必须进行双重 URL 编码（%2526 与 %253D），防止 & 与 = 被 HTTP 表单解析器错误拆解
-    let enc_query_string_double = urlencoding_encode(&urlencoding_encode(&query_string));
-
+    // userId 和 password 按锐捷协议原文发送（不做 URL 编码）
     let body = format!(
         "userId={}&password={}&service={}&queryString={}&operatorPwd={}&operatorUserId={}&validcode={}&passwordEncrypt={}",
-        enc_username,
-        enc_password,
-        enc_service,
-        enc_query_string_double,
-        enc_operator_pwd,
-        enc_operator_user_id,
-        enc_validcode,
+        username,
+        password,
+        urlencoding_encode(&service),
+        enc_query_string,
+        urlencoding_encode(&operator_pwd),
+        urlencoding_encode(&operator_user_id),
+        urlencoding_encode(&validcode),
         if password_encrypt == "true" { "true" } else { "false" }
     );
 
     let (host, port, path) = parse_url_components(action_url);
 
     // 优先采用显式绑定局域网物理网卡的专用 TCP 通道，杜绝双网卡冲突
-    match send_bound_http_post(&host, port, &path, &body, headers) {
-        Ok(resp_str) => {
-            if resp_str.contains("\"result\":\"success\"")
-                || resp_str.contains("\"result\": \"success\"")
-                || resp_str.contains("用户在线")
-                || resp_str.contains("已在线")
-            {
-                AuthResult::ok(200, "锐捷 SAM+ 校园网后台静默登录成功！".to_string())
-            } else if resp_str.contains("\"result\":\"fail\"")
-                || resp_str.contains("\"result\": \"fail\"")
-            {
-                let err_msg = extract_json_field(&resp_str, "message")
-                    .unwrap_or_else(|| "认证失败，请检查账号密码".to_string());
-
-                // 兼容性自愈：部分老版本网关期望单重编码 queryString，若返回参数相关错误，自动单重编码重试一次
-                if err_msg.contains("queryString") || err_msg.contains("参数") || err_msg.contains("为空") {
-                    let enc_query_string_single = urlencoding_encode(&query_string);
-                    let body_single = format!(
-                        "userId={}&password={}&service={}&queryString={}&operatorPwd={}&operatorUserId={}&validcode={}&passwordEncrypt={}",
-                        enc_username,
-                        enc_password,
-                        enc_service,
-                        enc_query_string_single,
-                        enc_operator_pwd,
-                        enc_operator_user_id,
-                        enc_validcode,
-                        if password_encrypt == "true" { "true" } else { "false" }
-                    );
-                    if let Ok(retry_resp) = send_bound_http_post(&host, port, &path, &body_single, headers) {
-                        if retry_resp.contains("\"result\":\"success\"")
-                            || retry_resp.contains("\"result\": \"success\"")
-                            || retry_resp.contains("用户在线")
-                            || retry_resp.contains("已在线")
-                        {
-                            return AuthResult::ok(200, "锐捷 SAM+ 校园网后台静默登录成功 (单重编码通道)！".to_string());
-                        }
-                    }
-                }
-
-                AuthResult::fail(200, format!("网关拒绝登录: {}", err_msg))
-            } else {
-                AuthResult::ok(200, "认证报文已发送".to_string())
-            }
-        }
+    let result = match send_bound_http_post(&host, port, &path, &body, headers) {
+        Ok(resp_str) => parse_ruijie_response(&resp_str),
         Err(_err) => {
             // 原生 Socket 若失败，降级走 ureq
-            execute_ruijie_sam_ureq_fallback(action_url, &body, headers)
+            let fallback = execute_ruijie_sam_ureq_fallback(action_url, &body, headers);
+            return fallback;
         }
+    };
+
+    if result.success {
+        return result;
+    }
+
+    // 自愈重试：若网关报"原ip与当前用户不一致"或"设备未注册"，说明 queryString 过期
+    // 强制清空并重新从局域网捕获最新的 queryString 后重试一次
+    if result.message.contains("原ip") || result.message.contains("设备未注册") || result.message.contains("queryString") || result.message.contains("参数") || result.message.contains("为空") {
+        if let Some(retry_qs) = get_fresh_ruijie_query_string() {
+            if retry_qs != query_string {
+                let retry_enc_qs = encode_ruijie_query_string(&retry_qs);
+                let retry_body = format!(
+                    "userId={}&password={}&service={}&queryString={}&operatorPwd={}&operatorUserId={}&validcode={}&passwordEncrypt={}",
+                    username, password, urlencoding_encode(&service), retry_enc_qs,
+                    urlencoding_encode(&operator_pwd), urlencoding_encode(&operator_user_id),
+                    urlencoding_encode(&validcode),
+                    if password_encrypt == "true" { "true" } else { "false" }
+                );
+                if let Ok(retry_resp) = send_bound_http_post(&host, port, &path, &retry_body, headers) {
+                    let retry_result = parse_ruijie_response(&retry_resp);
+                    if retry_result.success {
+                        return retry_result;
+                    }
+                }
+            }
+        }
+    }
+
+    result
+}
+
+/// 解析锐捷 SAM+ 网关响应 JSON
+fn parse_ruijie_response(resp_str: &str) -> AuthResult {
+    if resp_str.contains("\"result\":\"success\"")
+        || resp_str.contains("\"result\": \"success\"")
+        || resp_str.contains("用户在线")
+        || resp_str.contains("已在线")
+    {
+        AuthResult::ok(200, "锐捷 SAM+ 校园网后台静默登录成功！".to_string())
+    } else if resp_str.contains("\"result\":\"fail\"")
+        || resp_str.contains("\"result\": \"fail\"")
+    {
+        let err_msg = extract_json_field(resp_str, "message")
+            .unwrap_or_else(|| "认证失败，请检查账号密码".to_string());
+        AuthResult::fail(200, format!("网关拒绝登录: {}", err_msg))
+    } else {
+        AuthResult::ok(200, "认证报文已发送".to_string())
     }
 }
 
@@ -727,8 +761,9 @@ mod tests {
         }
         assert_eq!(qs, "wlanuserip=1.2.3.4&wlanacname=test");
 
-        let enc_double = urlencoding_encode(&urlencoding_encode(qs));
-        assert!(enc_double.contains("%253D"));
-        assert!(enc_double.contains("%2526"));
+        let enc = encode_ruijie_query_string(qs);
+        assert_eq!(enc, "wlanuserip%253D1.2.3.4%2526wlanacname%253Dtest");
+        assert!(enc.contains("%253D"));
+        assert!(enc.contains("%2526"));
     }
 }

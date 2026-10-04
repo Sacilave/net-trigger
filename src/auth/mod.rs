@@ -68,37 +68,43 @@ impl AuthExecutor {
             let mut params = config.get_expanded_params_with_ctx(&ctx);
 
             // 锐捷 RG-SAM+ / eportal 校园网智能参数自动补全：
-            // 当 action_url 包含 InterFace.do 或 eportal 时，若捕获到了带有 queryString 的 portal_url 自动注入：
+            // 当 action_url 包含 InterFace.do 或 eportal 时，始终优先采用当前网络会话的动态 queryString：
             if action_url.contains("InterFace.do") || action_url.contains("eportal") {
-                let has_valid_qs = params
-                    .get("queryString")
-                    .map(|s| !s.trim().is_empty())
-                    .unwrap_or(false);
+                let mut dynamic_qs = None;
 
-                if !has_valid_qs {
-                    let mut found_qs = None;
-                    if let Some(source_url) = detected_portal_url {
-                        if let Some(q_pos) = source_url.find('?') {
-                            let qs = &source_url[q_pos + 1..];
-                            if !qs.is_empty() {
-                                found_qs = Some(qs.to_string());
-                            }
+                // 优先级 1: 本次探测即时捕获到的认证重定向 URL (包含最新的动态 IP 与会话参数)
+                if let Some(source_url) = detected_portal_url {
+                    if let Some(q_pos) = source_url.find('?') {
+                        let qs = &source_url[q_pos + 1..];
+                        if !qs.is_empty() {
+                            dynamic_qs = Some(qs.to_string());
                         }
                     }
-                    if found_qs.is_none() {
+                }
+
+                // 优先级 2: 从局域网物理网卡向外网发起瞬时探测，抓取 AC 返回的最新 302 重定向
+                if dynamic_qs.is_none() {
+                    dynamic_qs = http_client::get_fresh_ruijie_query_string();
+                }
+
+                // 若成功抓取到最新的动态 queryString，强制覆盖（杜绝使用旧 IP 缓存造成"原ip与当前用户不一致"）
+                if let Some(qs) = dynamic_qs {
+                    params.insert("queryString".to_string(), qs);
+                } else {
+                    // 仅当动态探测完全无响应时，才降级使用配置中的 queryString 作为兜底
+                    let has_valid_qs = params
+                        .get("queryString")
+                        .map(|s| !s.trim().is_empty())
+                        .unwrap_or(false);
+
+                    if !has_valid_qs {
                         let cur_portal = &config.auth.portal_url;
                         if let Some(q_pos) = cur_portal.find('?') {
                             let qs = &cur_portal[q_pos + 1..];
                             if !qs.is_empty() {
-                                found_qs = Some(qs.to_string());
+                                params.insert("queryString".to_string(), qs.to_string());
                             }
                         }
-                    }
-                    if found_qs.is_none() {
-                        found_qs = http_client::get_fresh_ruijie_query_string();
-                    }
-                    if let Some(qs) = found_qs {
-                        params.insert("queryString".to_string(), qs);
                     }
                 }
                 if !params.contains_key("passwordEncrypt") {

@@ -197,14 +197,19 @@ impl StateMachine {
                         || cur_portal.contains("success.jsp");
 
                     if is_empty_or_default_or_stale && !detected_url.is_empty() {
-                        self.config.auth.portal_url = detected_url.clone();
+                        let base_portal = if let Some(q_pos) = detected_url.find('?') {
+                            &detected_url[..q_pos]
+                        } else {
+                            detected_url
+                        };
+                        self.config.auth.portal_url = base_portal.to_string();
                         let cfg_to_save = self.config.clone();
                         std::thread::spawn(move || {
                             if let Ok(toml_str) = toml::to_string_pretty(&cfg_to_save) {
                                 let _ = std::fs::write(crate::utils::fs::get_config_path(), toml_str);
                             }
                         });
-                        println!("✨ 智能识别并自动设置校园网登录网址: {}", detected_url);
+                        println!("✨ 智能识别并自动设置校园网登录网址: {}", base_portal);
                     }
                 }
 

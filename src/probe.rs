@@ -126,15 +126,22 @@ impl Probe {
                         // 此时不可直接武断判定为 Offline！执行三级权威降级仲裁：
 
                         // 2.1 探测已配置的认证网关端点
+                        let mut portal_candidate = None;
                         if let Some(ref portal) = self.portal_url {
                             let clean_portal = portal.trim();
                             if !clean_portal.is_empty() && !clean_portal.contains("example.") {
                                 if let Ok(portal_status) = self.probe_portal_endpoint(clean_portal) {
-                                    let latency_ms = start.elapsed().as_millis() as u64;
-                                    return ProbeReport {
-                                        status: portal_status,
-                                        latency_ms,
-                                    };
+                                    // 若网关直接返回了携带动态参数的 30x 重定向认证地址，直接采用
+                                    if let ProbeStatus::CaptivePortal { redirect_url: Some(ref url) } = portal_status {
+                                        if url.contains('?') {
+                                            let latency_ms = start.elapsed().as_millis() as u64;
+                                            return ProbeReport {
+                                                status: portal_status,
+                                                latency_ms,
+                                            };
+                                        }
+                                    }
+                                    portal_candidate = Some(portal_status);
                                 }
                             }
                         }
@@ -142,12 +149,30 @@ impl Probe {
                         // 2.2 纯 IP 直连外网探测 (彻底规避 DNS 阻断，捕获校园网 AC 硬件对 80 端口的 302 劫持与完整动态重定向 URL)
                         for ip_target in &["http://1.1.1.1/", "http://123.123.123.123/"] {
                             if let Ok(ip_status) = self.probe_endpoint(ip_target, true) {
-                                let latency_ms = start.elapsed().as_millis() as u64;
-                                return ProbeReport {
-                                    status: ip_status,
-                                    latency_ms,
-                                };
+                                if ip_status.is_online() {
+                                    let latency_ms = start.elapsed().as_millis() as u64;
+                                    return ProbeReport {
+                                        status: ip_status,
+                                        latency_ms,
+                                    };
+                                }
+                                if let ProbeStatus::CaptivePortal { redirect_url: Some(_) } = ip_status {
+                                    let latency_ms = start.elapsed().as_millis() as u64;
+                                    return ProbeReport {
+                                        status: ip_status,
+                                        latency_ms,
+                                    };
+                                }
                             }
+                        }
+
+                        // 2.3 若 IP 探测未捕获到重定向，但网关端点存活，采纳网关端点判定
+                        if let Some(st) = portal_candidate {
+                            let latency_ms = start.elapsed().as_millis() as u64;
+                            return ProbeReport {
+                                status: st,
+                                latency_ms,
+                            };
                         }
 
                         // 2.3 物理链路与内网分配判定：
@@ -200,6 +225,8 @@ impl Probe {
                         if loc.contains("redirectortosuccess.jsp")
                             || loc.contains("success.jsp")
                             || loc.contains("success.html")
+                            || loc.starts_with("https://1.1.1.1")
+                            || loc.starts_with("http://1.1.1.1")
                         {
                             return Ok(ProbeStatus::Online);
                         }
