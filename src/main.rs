@@ -284,9 +284,11 @@ fn main() {
             }
         }
 
-        // D. 处理低频心跳定时器 (Heartbeat)
+        // D. 处理低频心跳定时器 (Heartbeat) 或退避冷却到期即刻重测
         let heartbeat_interval = Duration::from_secs(fsm.config().general.effective_heartbeat_interval_sec());
-        if last_heartbeat.elapsed() >= heartbeat_interval {
+        let snap = fsm.snapshot();
+        let is_backoff_expired = fsm.state() == state::NetworkState::BackoffWait && snap.backoff_remaining_sec == 0;
+        if last_heartbeat.elapsed() >= heartbeat_interval || is_backoff_expired {
             last_heartbeat = Instant::now();
             let st = fsm.on_heartbeat_tick();
             let s = fsm.snapshot();

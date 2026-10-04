@@ -212,6 +212,38 @@
       border-color: var(--border-focus);
       box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
     }
+    .password-input-wrap {
+      position: relative;
+      display: flex;
+      align-items: center;
+      width: 100%;
+    }
+    .password-input-wrap input {
+      padding-right: 42px;
+    }
+    .password-toggle-btn {
+      position: absolute;
+      right: 8px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      padding: 6px;
+      cursor: pointer;
+      color: var(--text-muted);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: color 0.15s ease, background 0.15s ease;
+    }
+    .password-toggle-btn:hover {
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.06);
+    }
+    .password-toggle-btn:active {
+      transform: translateY(-50%) scale(0.96);
+    }
     .row {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -653,7 +685,19 @@
           </div>
           <div class="form-group">
             <label for="password" id="lbl-password">上网密码</label>
-            <input type="password" id="password" placeholder="输入密码 (免密网页可留空)">
+            <div class="password-input-wrap">
+              <input type="password" id="password" placeholder="输入密码 (免密网页可留空)">
+              <button type="button" class="password-toggle-btn" id="btn-toggle-password" onclick="togglePasswordVisibility()" aria-label="显示密码" title="显示密码">
+                <svg id="icon-eye-off" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                  <line x1="1" y1="1" x2="23" y2="23"></line>
+                </svg>
+                <svg id="icon-eye-on" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: none;">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                  <circle cx="12" cy="12" r="3"></circle>
+                </svg>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -1556,6 +1600,17 @@ Login information:
       const elTimeoutDesc = document.getElementById('txt-timeout-desc'); if (elTimeoutDesc) elTimeoutDesc.innerHTML = t.timeout_desc;
       const elBtnReconnect = document.getElementById('btn-reconnect-txt'); if (elBtnReconnect) elBtnReconnect.innerText = t.timeout_reconnect_btn;
 
+      const elBtnTogglePass = document.getElementById('btn-toggle-password');
+      if (elBtnTogglePass) {
+        const passIn = document.getElementById('password');
+        const isShown = passIn && passIn.type === 'text';
+        const tip = isShown
+          ? (currentLang === 'en' ? 'Hide password' : '隐藏密码')
+          : (currentLang === 'en' ? 'Show password' : '显示密码');
+        elBtnTogglePass.setAttribute('aria-label', tip);
+        elBtnTogglePass.setAttribute('title', tip);
+      }
+
       applyScenario(activeScenario);
     }
 
@@ -1944,6 +1999,29 @@ Login information:
       const modal = document.getElementById('guide-modal');
       if (modal) {
         modal.style.display = 'none';
+      }
+    }
+
+    function togglePasswordVisibility() {
+      const passInput = document.getElementById('password');
+      const iconOff = document.getElementById('icon-eye-off');
+      const iconOn = document.getElementById('icon-eye-on');
+      const btn = document.getElementById('btn-toggle-password');
+      if (!passInput) return;
+
+      const isPassword = passInput.type === 'password';
+      passInput.type = isPassword ? 'text' : 'password';
+
+      if (iconOff && iconOn) {
+        iconOff.style.display = isPassword ? 'none' : 'block';
+        iconOn.style.display = isPassword ? 'block' : 'none';
+      }
+      if (btn) {
+        const titleText = isPassword
+          ? (currentLang === 'en' ? 'Hide password' : '隐藏密码')
+          : (currentLang === 'en' ? 'Show password' : '显示密码');
+        btn.setAttribute('aria-label', titleText);
+        btn.setAttribute('title', titleText);
       }
     }
 

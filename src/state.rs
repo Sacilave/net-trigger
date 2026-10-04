@@ -216,6 +216,31 @@ impl StateMachine {
             }
         }
 
+        // 关键防护：若配置为局域网认证（如校园网 10.10.200.102 / eportal），但物理局域网网卡未连接（Wi-Fi已断开或网线未插）
+        let is_campus_target = self.config.auth.http.action_url.contains("10.10.200.102")
+            || self.config.auth.portal_url.contains("10.10.200.102")
+            || self.config.auth.http.action_url.contains("eportal");
+
+        if is_campus_target && crate::config::get_lan_adapter_ipv4().is_none() {
+            // 物理局域网未连接，绝不可向 4G 蜂窝网卡发校园网认证包！
+            // 立即核验当前机器是否有其它网络连通（例如 LTE 蜂窝网络正常上网）
+            let probe_rep = self.probe.check_with_report();
+            if probe_rep.status.is_online() {
+                self.consecutive_failures = 0;
+                self.backoff_until = None;
+                self.transition_to(
+                    NetworkState::Online,
+                    format!("网络已连接 (延迟: {}ms)", probe_rep.latency_ms),
+                );
+            } else {
+                self.transition_to(
+                    NetworkState::Disconnected,
+                    "未连接到网络 (WiFi未开启/网线未插)".to_string(),
+                );
+            }
+            return;
+        }
+
         let is_browser_mode = self.config.auth.mode == "browser";
         let action_desc = if is_browser_mode {
             "正在打开登录网页..."
@@ -418,5 +443,13 @@ mod tests {
         fsm.last_detected_portal_url = Some("http://10.10.200.102/eportal/index.jsp?wlanuserip=1.2.3.4".to_string());
 
         assert_eq!(fsm.get_effective_portal_url(), "http://10.10.200.102/eportal/index.jsp?wlanuserip=1.2.3.4");
+    }
+
+    #[test]
+    fn test_step_probe_on_current_machine() {
+        let (cfg, _) = Config::load_or_create().unwrap();
+        let mut fsm = StateMachine::new(cfg);
+        let st = fsm.step_probe();
+        println!("CURRENT FSM STATE: {:?}, msg: {}", st, fsm.snapshot().last_message);
     }
 }

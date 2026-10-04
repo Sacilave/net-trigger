@@ -150,10 +150,11 @@ impl Probe {
                             }
                         }
 
-                        // 2.3 物理链路与内网分配判定：若已获得私网 IPv4 (10.x.x.x / 172.16-31.x.x / 192.168.x.x)
-                        // 说明物理链路与 DHCP 正常，仅外网被拦截，判为 CaptivePortal 触发重连
-                        if let Some(local_ip) = crate::config::get_local_outbound_ip() {
-                            if is_lan_ip(&local_ip) {
+                        // 2.3 物理链路与内网分配判定：
+                        // 严格核验是否连接了物理局域网网卡 (WiFi 或 以太网)！
+                        // 严禁将移动蜂窝网络 (4G/5G LTE) 的 CGNAT 10.x.x.x 私网 IP 误判为校园网 Captive Portal！
+                        if let Some(lan_ip) = crate::config::get_lan_adapter_ipv4() {
+                            if is_lan_ip(&lan_ip) {
                                 let latency_ms = start.elapsed().as_millis() as u64;
                                 return ProbeReport {
                                     status: ProbeStatus::CaptivePortal {
