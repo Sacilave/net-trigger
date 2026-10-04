@@ -416,9 +416,27 @@ fn connect_lan_bound_tcp(
     use windows_sys::Win32::Networking::WinSock::*;
 
     let local_lan_ip = crate::config::get_lan_adapter_ipv4();
-    let remote_v4 = remote_ip
-        .parse::<std::net::Ipv4Addr>()
-        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidInput, e))?;
+    let remote_v4 = match remote_ip.parse::<std::net::Ipv4Addr>() {
+        Ok(v4) => v4,
+        Err(_) => {
+            use std::net::ToSocketAddrs;
+            let mut resolved = None;
+            if let Ok(iter) = (remote_ip, port).to_socket_addrs() {
+                for addr in iter {
+                    if let std::net::SocketAddr::V4(v4_addr) = addr {
+                        resolved = Some(*v4_addr.ip());
+                        break;
+                    }
+                }
+            }
+            resolved.ok_or_else(|| {
+                std::io::Error::new(
+                    std::io::ErrorKind::NotFound,
+                    format!("无法解析网关主机名: {}", remote_ip),
+                )
+            })?
+        }
+    };
 
     unsafe {
         let sock = socket(AF_INET as i32, SOCK_STREAM, IPPROTO_TCP);

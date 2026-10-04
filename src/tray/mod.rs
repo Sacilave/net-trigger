@@ -33,9 +33,9 @@ pub struct TrayI18n {
 }
 
 pub const I18N_ZH: TrayI18n = TrayI18n {
-    manual_check: "⚡ 立即重连",
-    open_portal: "🌐 打开登录网页",
-    settings: "⚙️ 设置",
+    manual_check: "立即重连",
+    open_portal: "打开登录网页",
+    settings: "设置",
     autostart: "开机自启动",
     silent_mode: "静默模式 (免打扰)",
     quit: "退出",
@@ -50,9 +50,9 @@ pub const I18N_ZH: TrayI18n = TrayI18n {
 };
 
 pub const I18N_EN: TrayI18n = TrayI18n {
-    manual_check: "⚡ Reconnect Now",
-    open_portal: "🌐 Open Login Portal",
-    settings: "⚙️ Settings",
+    manual_check: "Reconnect Now",
+    open_portal: "Open Login Portal",
+    settings: "Settings",
     autostart: "Start on Boot",
     silent_mode: "Silent Mode (Do Not Disturb)",
     quit: "Quit",
@@ -118,8 +118,8 @@ impl SystemTrayManager {
         let item_open_portal = MenuItem::new(i18n.open_portal, true, None);
         let item_open_web_config = MenuItem::new(i18n.settings, true, None);
 
-        // 原生二级语言子菜单：始终常驻 "🌐 Language / 语言"，保证任何语言用户第一眼即可辨识
-        let lang_submenu = Submenu::new("🌐 Language / 语言", true);
+        // 原生二级语言子菜单：常驻 "Language / 语言"，保证任何语言用户第一眼即可辨识
+        let lang_submenu = Submenu::new("Language / 语言", true);
         let item_lang_auto = CheckMenuItem::new("Auto (自动)", true, lang == Language::Auto, None);
         let item_lang_en = CheckMenuItem::new("English", true, lang == Language::En, None);
         let item_lang_zh = CheckMenuItem::new("简体中文", true, lang == Language::Zh, None);
@@ -350,12 +350,12 @@ mod tests {
     #[test]
     fn test_tray_i18n_mappings() {
         let zh = TrayI18n::get(Language::Zh);
-        assert_eq!(zh.settings, "⚙️ 设置");
-        assert_eq!(zh.manual_check, "⚡ 立即重连");
+        assert_eq!(zh.settings, "设置");
+        assert_eq!(zh.manual_check, "立即重连");
 
         let en = TrayI18n::get(Language::En);
-        assert_eq!(en.settings, "⚙️ Settings");
-        assert_eq!(en.manual_check, "⚡ Reconnect Now");
+        assert_eq!(en.settings, "Settings");
+        assert_eq!(en.manual_check, "Reconnect Now");
     }
 
 }

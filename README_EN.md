@@ -4,7 +4,7 @@
 
 **A native, ultra-lightweight (RAM < 2MB), event-driven network status keeper and captive portal auto-reconnect engine designed for Windows.**
 
-[![Release](https://img.shields.io/badge/Release-v1.0.0-blue.svg)](https://github.com/Sacilave/net-trigger/releases)
+[![Release](https://img.shields.io/badge/Release-v1.2.0-blue.svg)](https://github.com/Sacilave/net-trigger/releases)
 [![License](https://img.shields.io/badge/License-CC%20BY--NC%204.0-red.svg)](./LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Windows%2010%20%2F%2011-blue.svg)]()
 [![Memory](https://img.shields.io/badge/RAM-%3C%201.9%20MB-brightgreen.svg)]()
@@ -20,6 +20,7 @@
 - [🚀 Quick Start (Download & Usage)](#-quick-start)
   - [Step 1: Download Program](#step-1-download-program)
   - [Step 2: Configure Authentication](#step-2-configure-authentication)
+- [🏫 Gateway Support & Verification Status](#-gateway-support--verification-status)
 - [💡 Performance & Resource Comparison](#-performance--resource-comparison)
 - [⚡ Key Architecture & Features](#-key-architecture--features)
 - [🎮 Operating Profile Presets](#-operating-profile-presets)
@@ -49,18 +50,30 @@ Choose the edition that best suits your workflow (**if unsure, choose the 1st on
 
 ### Step 2: Configure Authentication (Choose One of Two Modes)
 
+Supports two quick scenarios: **Campus Network** and **Public Network**.
+
 #### Mode A: Browser Auto-Login / Remember Password (Default ⭐)
 If your campus, hotel, or dorm network supports remembering passwords in the browser:
-1. **Left-click** or **right-click** the tray icon ➔ Click **【⚙️ Settings】**;
-2. Enter your captive portal login URL;
-   - *💡 Smart Sniffing: If unsure of the exact URL, NetTrigger automatically sniffs the gateway redirection on first encounter and fills it in for zero-config convenience!*
+1. **Left-click** or **right-click** the tray icon ➔ Click **【Settings】**;
+2. Enter your captive portal login URL (or leave empty to let NetTrigger auto-detect upon disconnection);
 3. Click **【Save Settings】**.
 
 #### Mode B: Silent Background HTTP Authentication (Gaming / Zero-Distraction)
 If you want 100% foreground focus retention without any browser windows popping up:
-1. Open **【⚙️ Settings】** ➔ Switch to the **【Silent HTTP Login (POST / GET)】** tab;
+1. Open **【Settings】** ➔ Switch to the **【Silent Auto-Login (Recommended · No Popup)】** tab;
 2. Press `F12` on your browser's login page, copy the login request as cURL, and paste it into the cURL auto-importer;
 3. Click **【Test Connection】** to verify gateway responses ➔ Click **【Save Settings】**.
+
+---
+
+## 🏫 Gateway Support & Verification Status
+
+| Gateway / Architecture | Support Level | Real-World Test Status | Recommended Usage |
+| :--- | :--- | :--- | :--- |
+| **Ruijie (RG-SAM+ / eportal)** | **Locally Verified & Guaranteed** | **Fully tested and verified in physical campus network** (covers endpoint login, dynamic IP macro substitution, success.jsp sanitization, etc.) | Click "Ruijie Auto-Fill" preset button in Settings and enter password |
+| **Srun (深澜软件)** | **Standard Protocol Support** | Not verified on physical hardware; 100% compatibility cannot be guaranteed | Press F12, Copy as cURL, and auto-import |
+| **Dr.COM (城市热点)** | **Standard Protocol Support** | Not verified on physical hardware; 100% compatibility cannot be guaranteed | Press F12, Copy as cURL, and auto-import |
+| **Huawei / Public Wi-Fi / Others** | **Standard Protocol Support** | Not verified on physical hardware; 100% compatibility cannot be guaranteed | Standard POST/GET supported; use provided AI prompt if encountering proprietary tokens |
 
 ---
 
@@ -117,15 +130,15 @@ Three optimized profiles are available in Settings with a single click:
 - 🔵 **Sky Blue**: `Starting up...`
 
 ### System Tray Shortcuts
-- **Left-Click / Double-Click**: Instantly opens the **【⚙️ Settings】** control center;
+- **Left-Click / Double-Click**: Instantly opens the **【Settings】** control center;
 - **Right-Click**: Opens a clean context menu:
   ```
   +------------------------------------+
-  | ⚡ Reconnect Now                    |  <-- Immediately triggers re-probe & reconnect
-  | 🌐 Open Login Portal               |  <-- Quick browser login portal channel
+  | Reconnect Now                      |  <-- Immediately triggers re-probe & reconnect
+  | Open Login Portal                  |  <-- Quick browser login portal channel
   |------------------------------------|
-  | ⚙️ Settings                        |  <-- Opens Web control center (also on left-click)
-  | 🌐 Language / 语言        ▶       |  <-- In-place language switch (Auto / English / 简体中文)
+  | Settings                           |  <-- Opens Web control center (also on left-click)
+  | Language / 语言          ▶         |  <-- In-place language switch (Auto / English / 简体中文)
   |------------------------------------|
   | [√] Start on Boot                  |  <-- Toggle startup registry (no admin required)
   | [√] Silent Mode (Do Not Disturb)   |  <-- Suppress toast notifications on reconnect
@@ -155,7 +168,7 @@ Requirements: Standard Rust toolchain (Edition 2021).
 git clone https://github.com/Sacilave/net-trigger.git
 cd net-trigger
 
-# 2. Run the automated test suite (25 unit and mock tests)
+# 2. Run the automated test suite (36 unit and mock tests)
 cargo test
 
 # 3. Compile optimized release binary (with LTO, Strip, and size-optimization)

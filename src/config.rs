@@ -131,7 +131,7 @@ app_name = "NetTrigger"
 # Interface and interaction language: "auto" (follow system) | "zh" (Chinese) | "en" (English)
 language = "auto"
 
-# Scenario preset: "campus" (Campus network) | "public" (Office / Public Wi-Fi) | "universal" (Other networks)
+# Scenario preset: "campus" (校园网 / Campus network) | "public" (公用网络 / Public network)
 scenario = "campus"
 
 # Operating profile: "gaming" | "balanced" | "power_save"
@@ -939,7 +939,9 @@ mod tests {
     fn test_get_lan_adapter_ipv4() {
         let ip = get_lan_adapter_ipv4();
         println!("Detected LAN Adapter IPv4: {:?}", ip);
-        #[cfg(windows)]
-        assert_eq!(ip, Some("10.150.100.101".to_string()));
+        if let Some(ref addr) = ip {
+            assert!(!addr.starts_with("127."));
+            assert!(!addr.starts_with("169.254."));
+        }
     }
 }
