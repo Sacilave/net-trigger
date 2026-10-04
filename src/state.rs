@@ -444,12 +444,4 @@ mod tests {
 
         assert_eq!(fsm.get_effective_portal_url(), "http://10.10.200.102/eportal/index.jsp?wlanuserip=1.2.3.4");
     }
-
-    #[test]
-    fn test_step_probe_on_current_machine() {
-        let (cfg, _) = Config::load_or_create().unwrap();
-        let mut fsm = StateMachine::new(cfg);
-        let st = fsm.step_probe();
-        println!("CURRENT FSM STATE: {:?}, msg: {}", st, fsm.snapshot().last_message);
-    }
 }
