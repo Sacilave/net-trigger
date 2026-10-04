@@ -654,6 +654,61 @@ pub fn get_local_mac_address() -> Option<String> {
     None
 }
 
+/// 获取当前系统活动的物理局域网网卡 (WiFi 或 以太网) 的内网 IPv4 地址
+///
+/// 核心特性：自动过滤移动蜂窝网卡（4G/5G WWAN）、APIPA 链路私有地址及环回接口，
+/// 免疫多网卡/双网卡路由倒灌冲突，精准返回校园网绑定的真实 IP。
+pub fn get_lan_adapter_ipv4() -> Option<String> {
+    #[cfg(windows)]
+    {
+        use windows_sys::Win32::NetworkManagement::IpHelper::{
+            GetAdaptersAddresses, GAA_FLAG_SKIP_ANYCAST, GAA_FLAG_SKIP_DNS_SERVER,
+            GAA_FLAG_SKIP_MULTICAST, IP_ADAPTER_ADDRESSES_LH,
+        };
+        use windows_sys::Win32::Networking::WinSock::{AF_INET, SOCKADDR_IN};
+
+        unsafe {
+            let mut buf_len: u32 = 15000;
+            let mut buffer: Vec<u8> = vec![0u8; buf_len as usize];
+            let flags = GAA_FLAG_SKIP_ANYCAST | GAA_FLAG_SKIP_MULTICAST | GAA_FLAG_SKIP_DNS_SERVER;
+            let res = GetAdaptersAddresses(
+                AF_INET as u32,
+                flags,
+                std::ptr::null_mut(),
+                buffer.as_mut_ptr() as *mut IP_ADAPTER_ADDRESSES_LH,
+                &mut buf_len,
+            );
+
+            if res == 0 {
+                let mut current = buffer.as_ptr() as *const IP_ADAPTER_ADDRESSES_LH;
+                while !current.is_null() {
+                    let adapter = &*current;
+                    // IfType 6 = MIB_IF_TYPE_ETHERNET, 71 = IF_TYPE_IEEE80211 (WiFi)
+                    if (adapter.IfType == 6 || adapter.IfType == 71) && adapter.OperStatus == 1 {
+                        let mut unicast = adapter.FirstUnicastAddress;
+                        while !unicast.is_null() {
+                            let uni = &*unicast;
+                            if !uni.Address.lpSockaddr.is_null() {
+                                let sa = &*(uni.Address.lpSockaddr as *const SOCKADDR_IN);
+                                if sa.sin_family == AF_INET {
+                                    let b = sa.sin_addr.S_un.S_un_b;
+                                    let ip = format!("{}.{}.{}.{}", b.s_b1, b.s_b2, b.s_b3, b.s_b4);
+                                    if !ip.starts_with("127.") && !ip.starts_with("169.254.") {
+                                        return Some(ip);
+                                    }
+                                }
+                            }
+                            unicast = uni.Next;
+                        }
+                    }
+                    current = adapter.Next;
+                }
+            }
+        }
+    }
+    None
+}
+
 impl Config {
     /// 加载配置文件；若不存在，则原子化创建带对应语言注释的默认配置文件并返回
     pub fn load_or_create() -> Result<(Self, bool), ConfigError> {
@@ -809,5 +864,13 @@ mod tests {
         let res = cfg.get_expanded_params_with_ctx(&ctx);
         assert_eq!(res.get("userId"), Some(&"student88".to_string()));
         assert_eq!(res.get("clientIp"), Some(&"192.168.1.88".to_string()));
+    }
+
+    #[test]
+    fn test_get_lan_adapter_ipv4() {
+        let ip = get_lan_adapter_ipv4();
+        println!("Detected LAN Adapter IPv4: {:?}", ip);
+        #[cfg(windows)]
+        assert_eq!(ip, Some("10.150.100.101".to_string()));
     }
 }

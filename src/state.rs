@@ -238,7 +238,7 @@ impl StateMachine {
             false
         };
 
-        let _auth_result: AuthResult = if should_skip_browser_open {
+        let auth_result: AuthResult = if should_skip_browser_open {
             AuthResult::ok(200, "等待用户在已打开的网页中完成登录...".to_string())
         } else {
             let res = AuthExecutor::execute(&self.config, detected_url);
@@ -251,6 +251,10 @@ impl StateMachine {
         if is_browser_mode {
             // 网页自动登录模式下，给浏览器 1.5 秒启动、自动填充与提交时间，避免 0ms 瞬间误判失败
             std::thread::sleep(Duration::from_millis(1500));
+        } else if auth_result.success {
+            // 校园网网关（如锐捷 SAM+、深澜等）在收到登录成功响应后，底层防火墙规则下发通常有 100~300ms 纳管延迟
+            // 稍作缓冲后再进行权威探测核验，杜绝瞬间误判
+            std::thread::sleep(Duration::from_millis(300));
         }
 
         // 认证报文发送完成后，执行一次快速探针二次核验
@@ -271,15 +275,21 @@ impl StateMachine {
             let backoff_secs = self.calculate_backoff_secs();
             self.backoff_until = Some(Instant::now() + Duration::from_secs(backoff_secs));
 
+            let reason_prefix = if !auth_result.success && !auth_result.message.is_empty() {
+                format!("{}: ", auth_result.message)
+            } else {
+                String::new()
+            };
+
             let user_friendly_msg = if is_browser_mode {
                 format!(
-                    "等待网页登录中，{}秒后自动检测 (第{}次)",
-                    backoff_secs, self.consecutive_failures
+                    "{}等待网页登录中，{}秒后自动检测 (第{}次)",
+                    reason_prefix, backoff_secs, self.consecutive_failures
                 )
             } else {
                 format!(
-                    "连接未成功，{}秒后自动重试 (第{}次)",
-                    backoff_secs, self.consecutive_failures
+                    "{}连接未成功，{}秒后自动重试 (第{}次)",
+                    reason_prefix, backoff_secs, self.consecutive_failures
                 )
             };
             self.transition_to(NetworkState::BackoffWait, user_friendly_msg);

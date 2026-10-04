@@ -679,7 +679,8 @@
             <div class="form-group">
               <label id="lbl-curl-import">从浏览器 cURL 快速导入</label>
               <textarea id="curl-input" rows="2" placeholder="在登录页按 F12 -> Network -> 右键登录请求 -> Copy as cURL 粘贴于此"></textarea>
-              <div style="text-align: right; margin-top: 4px;">
+              <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px;">
+                <button type="button" class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px;" onclick="applyRuijiePreset()" id="btn-ruijie-preset">🎓 锐捷/SAM+ 一键预设</button>
                 <button type="button" class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px;" onclick="parseCurl()" id="btn-curl-parse">自动提取填充</button>
               </div>
             </div>
@@ -1307,12 +1308,12 @@ My campus network information:
       document.getElementById('method').value = (http.method || 'POST').toUpperCase();
 
       const params = http.params || {};
-      document.getElementById('username').value = params.username || '';
+      document.getElementById('username').value = params.username || params.userId || '';
       document.getElementById('password').value = params.password || '';
 
       const extras = [];
       for (const [k, v] of Object.entries(params)) {
-        if (k !== 'username' && k !== 'password') {
+        if (k !== 'username' && k !== 'userId' && k !== 'password') {
           extras.push(`${k}=${v}`);
         }
       }
@@ -1369,33 +1370,55 @@ My campus network information:
       if (target) target.classList.add('active');
     }
 
+    function applyRuijiePreset() {
+      switchMode('http');
+      document.getElementById('action_url').value = 'http://10.10.200.102/eportal/InterFace.do?method=login';
+      document.getElementById('method').value = 'POST';
+      if (!document.getElementById('username').value.trim()) {
+        document.getElementById('username').value = '2311611043';
+      }
+      document.getElementById('extra_params').value = 'service=&passwordEncrypt=false';
+      showNotice('已自动载入锐捷 RG-SAM+ 校园网接口预设！请确认学号并输入密码，然后点击【保存设置】即可开启后台秒连。', 'success');
+    }
+
     function parseCurl() {
       const text = document.getElementById('curl-input').value.trim();
       if (!text) return;
 
-      const urlMatch = text.match(/curl\s+["']?([^"'\s]+)["']?/i) || text.match(/(?:'|")?(https?:\/\/[^\s"']+)/i);
+      // 精准提取真实的 HTTP/HTTPS 目标 URL，彻底杜绝 --url、-X 等命令行参数被误当做 URL
+      const urlMatch = text.match(/(https?:\/\/[^\s"']+)/i);
       if (urlMatch) {
         document.getElementById('action_url').value = urlMatch[1];
       }
 
-      if (text.includes('-X POST') || text.includes('--data') || text.includes('-d ')) {
+      if (text.includes('-X POST') || text.includes('--data') || text.includes('-d ') || text.includes('--data-raw')) {
         document.getElementById('method').value = 'POST';
       } else if (text.includes('-X GET')) {
         document.getElementById('method').value = 'GET';
       }
 
-      const dataMatch = text.match(/(?:--data-raw|--data|-d)\s+['"]([^'"]+)['"]/);
+      const dataMatch = text.match(/(?:--data-raw|--data-binary|--data|-d)\s+['"]([^'"]+)['"]/s)
+        || text.match(/(?:--data-raw|--data-binary|--data|-d)\s+\$?'([^']+)'/s)
+        || text.match(/(?:--data-raw|--data-binary|--data|-d)\s+([^\s]+)/);
+
       if (dataMatch) {
         const payload = dataMatch[1];
         const extras = [];
         payload.split('&').forEach(pair => {
           const [k, v] = pair.split('=');
           if (k) {
-            const decKey = decodeURIComponent(k);
-            const decVal = v ? decodeURIComponent(v) : '';
-            if (decKey.toLowerCase().includes('user') || decKey.toLowerCase().includes('account')) {
+            let decKey = k;
+            let decVal = v || '';
+            try { decKey = decodeURIComponent(k); } catch(e) {}
+            try { decVal = decodeURIComponent(decVal); } catch(e) {}
+            if (decVal.includes('%')) {
+              try { decVal = decodeURIComponent(decVal); } catch(e) {}
+            }
+
+            const lowKey = decKey.toLowerCase();
+            if (lowKey === 'userid' || lowKey === 'username' || lowKey.includes('user') || lowKey.includes('account')) {
               document.getElementById('username').value = decVal;
-            } else if (decKey.toLowerCase().includes('pass') || decKey.toLowerCase().includes('pwd')) {
+            } else if (lowKey === 'password' || lowKey === 'passwd' || lowKey.includes('pass') || lowKey.includes('pwd')) {
               document.getElementById('password').value = decVal;
             } else {
               extras.push(`${decKey}=${decVal}`);
@@ -1430,7 +1453,10 @@ My campus network information:
       const params = {};
       const u = document.getElementById('username').value.trim();
       const p = document.getElementById('password').value.trim();
-      if (u) params['username'] = u;
+      if (u) {
+        params['username'] = u;
+        params['userId'] = u;
+      }
       if (p) params['password'] = p;
 
       const extraStr = document.getElementById('extra_params').value.trim();

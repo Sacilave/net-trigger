@@ -68,12 +68,13 @@ impl AuthExecutor {
             // 当 action_url 包含 InterFace.do 或 eportal 时，若捕获到了带有 queryString 的 portal_url 自动注入：
             if action_url.contains("InterFace.do") || action_url.contains("eportal") {
                 if !params.contains_key("queryString") {
-                    if let Some(detected) = detected_portal_url {
-                        if let Some(q_pos) = detected.find('?') {
-                            let qs = &detected[q_pos + 1..];
-                            if !qs.is_empty() {
-                                params.insert("queryString".to_string(), qs.to_string());
-                            }
+                    let source_url = detected_portal_url
+                        .filter(|u| !u.trim().is_empty())
+                        .unwrap_or_else(|| &config.auth.portal_url);
+                    if let Some(q_pos) = source_url.find('?') {
+                        let qs = &source_url[q_pos + 1..];
+                        if !qs.is_empty() {
+                            params.insert("queryString".to_string(), qs.to_string());
                         }
                     }
                 }
