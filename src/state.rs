@@ -70,7 +70,7 @@ pub struct StateMachine {
 impl StateMachine {
     /// 创建状态机实例
     pub fn new(config: Config) -> Self {
-        let probe = Probe::new(&config.probe);
+        let probe = Probe::with_portal(&config.probe, Some(&config.auth.portal_url));
         Self {
             config,
             probe,
@@ -98,7 +98,7 @@ impl StateMachine {
 
     /// 热重载新配置
     pub fn update_config(&mut self, new_config: Config) {
-        self.probe = Probe::new(&new_config.probe);
+        self.probe = Probe::with_portal(&new_config.probe, Some(&new_config.auth.portal_url));
         self.config = new_config;
         self.last_message = "配置已动态重载".to_string();
     }
@@ -316,8 +316,12 @@ impl StateMachine {
         self.consecutive_failures = 0;
         self.backoff_until = None;
         self.last_browser_open_at = None;
-        self.last_message = "用户手动触发网络检测".to_string();
-        self.step_probe()
+        self.last_message = "用户手动触发网络检测与重连".to_string();
+        let state = self.step_probe();
+        if state != NetworkState::Online {
+            self.trigger_reconnect();
+        }
+        self.current_state
     }
 
     /// 状态跃迁辅助函数

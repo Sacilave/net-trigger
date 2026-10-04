@@ -56,11 +56,17 @@ pub struct Probe {
     primary_url: String,
     fallback_url: String,
     fallback_expected_keyword: String,
+    portal_url: Option<String>,
 }
 
 impl Probe {
     /// 基于配置创建探针实例
     pub fn new(config: &ProbeConfig) -> Self {
+        Self::with_portal(config, None)
+    }
+
+    /// 基于探针配置与可选认证网关网址创建探针实例
+    pub fn with_portal(config: &ProbeConfig, portal_url: Option<&str>) -> Self {
         let timeout_ms = if config.timeout_ms == 0 {
             3000
         } else {
@@ -83,6 +89,7 @@ impl Probe {
             primary_url: config.primary_url.clone(),
             fallback_url: config.fallback_url.clone(),
             fallback_expected_keyword: config.fallback_expected_keyword.clone(),
+            portal_url: portal_url.map(|s| s.trim().to_string()),
         }
     }
 
@@ -115,6 +122,48 @@ impl Probe {
                         }
                     }
                     Err(fallback_err) => {
+                        // 2. 主探针与备用探针均失败 (校园网未认证时 DNS 阻断外网域名属于常态)
+                        // 此时不可直接武断判定为 Offline！执行三级权威降级仲裁：
+
+                        // 2.1 探测已配置的认证网关端点
+                        if let Some(ref portal) = self.portal_url {
+                            let clean_portal = portal.trim();
+                            if !clean_portal.is_empty() && !clean_portal.contains("example.") {
+                                if let Ok(portal_status) = self.probe_portal_endpoint(clean_portal) {
+                                    let latency_ms = start.elapsed().as_millis() as u64;
+                                    return ProbeReport {
+                                        status: portal_status,
+                                        latency_ms,
+                                    };
+                                }
+                            }
+                        }
+
+                        // 2.2 纯 IP 直连外网探测 (彻底规避 DNS 阻断，捕获校园网 AC 对 80 端口的 302 劫持)
+                        for ip_target in &["http://123.123.123.123/", "http://1.1.1.1/"] {
+                            if let Ok(ip_status) = self.probe_endpoint(ip_target, true) {
+                                let latency_ms = start.elapsed().as_millis() as u64;
+                                return ProbeReport {
+                                    status: ip_status,
+                                    latency_ms,
+                                };
+                            }
+                        }
+
+                        // 2.3 物理链路与内网分配判定：若已获得私网 IPv4 (10.x.x.x / 172.16-31.x.x / 192.168.x.x)
+                        // 说明物理链路与 DHCP 正常，仅外网被拦截，判为 CaptivePortal 触发重连
+                        if let Some(local_ip) = crate::config::get_local_outbound_ip() {
+                            if is_lan_ip(&local_ip) {
+                                let latency_ms = start.elapsed().as_millis() as u64;
+                                return ProbeReport {
+                                    status: ProbeStatus::CaptivePortal {
+                                        redirect_url: self.portal_url.clone(),
+                                    },
+                                    latency_ms,
+                                };
+                            }
+                        }
+
                         let latency_ms = start.elapsed().as_millis() as u64;
                         ProbeReport {
                             status: ProbeStatus::Offline {
@@ -213,6 +262,78 @@ impl Probe {
             }
         }
     }
+
+    /// 探测配置的认证网关端点
+    fn probe_portal_endpoint(&self, portal_url: &str) -> Result<ProbeStatus, String> {
+        // 如果 portal_url 包含了 success.jsp，提取其 origin/base 或根路径，避免触发“原ip与当前用户不一致”
+        let probe_target = if portal_url.contains("success.jsp") {
+            if let Some(pos) = portal_url.find("/eportal/") {
+                format!("{}/eportal/", &portal_url[..pos])
+            } else if let Some(pos) = portal_url.find("/success.jsp") {
+                format!("{}/", &portal_url[..pos])
+            } else {
+                portal_url.to_string()
+            }
+        } else {
+            portal_url.to_string()
+        };
+
+        let res = self.agent.get(&probe_target).call();
+        match res {
+            Ok(response) => {
+                let status = response.status();
+                if (300..=399).contains(&status) {
+                    let location = response
+                        .header("Location")
+                        .or_else(|| response.header("location"))
+                        .map(|s| s.trim().to_string());
+                    return Ok(ProbeStatus::CaptivePortal {
+                        redirect_url: location,
+                    });
+                }
+                // 200 OK: 校园网认证网关响应了页面
+                Ok(ProbeStatus::CaptivePortal {
+                    redirect_url: Some(probe_target),
+                })
+            }
+            Err(ureq::Error::Status(code, response)) => {
+                if (300..=399).contains(&code) {
+                    let location = response
+                        .header("Location")
+                        .or_else(|| response.header("location"))
+                        .map(|s| s.trim().to_string());
+                    return Ok(ProbeStatus::CaptivePortal {
+                        redirect_url: location,
+                    });
+                }
+                // 哪怕返回了 401/403/404 等，也说明网关服务活着，属于 CaptivePortal 环境
+                Ok(ProbeStatus::CaptivePortal {
+                    redirect_url: Some(probe_target),
+                })
+            }
+            Err(ureq::Error::Transport(err)) => Err(err.to_string()),
+        }
+    }
+}
+
+/// 判定 IP 地址是否属于私网局域网（10.x, 172.16-31.x, 192.168.x）且排除了 APIPA (169.254.x) 与 Loopback
+fn is_lan_ip(ip_str: &str) -> bool {
+    if let Ok(ip) = ip_str.parse::<std::net::Ipv4Addr>() {
+        let octets = ip.octets();
+        if octets[0] == 127 || (octets[0] == 169 && octets[1] == 254) || octets[0] == 0 {
+            return false;
+        }
+        if octets[0] == 10 {
+            return true;
+        }
+        if octets[0] == 172 && (16..=31).contains(&octets[1]) {
+            return true;
+        }
+        if octets[0] == 192 && octets[1] == 168 {
+            return true;
+        }
+    }
+    false
 }
 
 #[cfg(test)]
@@ -374,5 +495,35 @@ mod tests {
         let probe = Probe::new(&config);
         let status = probe.check();
         assert_eq!(status, ProbeStatus::Online);
+    }
+
+    #[test]
+    fn test_probe_portal_fallback_when_primary_and_fallback_unreachable() {
+        use std::net::TcpListener;
+
+        let portal_listener = TcpListener::bind("127.0.0.1:0").expect("bind listener");
+        let portal_port = portal_listener.local_addr().expect("local_addr").port();
+
+        serve_mock_response(
+            portal_listener,
+            b"HTTP/1.1 302 Found\r\nLocation: http://10.10.200.102/eportal/index.jsp?wlanuserip=1.2.3.4\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+        );
+
+        let config = ProbeConfig {
+            primary_url: "http://127.0.0.1:54321/unreachable_204".to_string(),
+            fallback_url: "http://127.0.0.1:54322/unreachable_txt".to_string(),
+            fallback_expected_keyword: "unused".to_string(),
+            timeout_ms: 500,
+        };
+
+        let portal_url = format!("http://127.0.0.1:{}/", portal_port);
+        let probe = Probe::with_portal(&config, Some(&portal_url));
+        let status = probe.check();
+        assert_eq!(
+            status,
+            ProbeStatus::CaptivePortal {
+                redirect_url: Some("http://10.10.200.102/eportal/index.jsp?wlanuserip=1.2.3.4".to_string())
+            }
+        );
     }
 }

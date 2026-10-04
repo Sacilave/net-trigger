@@ -62,7 +62,32 @@ impl AuthExecutor {
             // mode == "http" (静默模拟登录)
             let ctx = MacroContext::build(config);
             let action_url = config.get_expanded_action_url(&ctx);
-            let params = config.get_expanded_params_with_ctx(&ctx);
+            let mut params = config.get_expanded_params_with_ctx(&ctx);
+
+            // 锐捷 RG-SAM+ / eportal 校园网智能参数自动补全：
+            // 当 action_url 包含 InterFace.do 或 eportal 时，若捕获到了带有 queryString 的 portal_url 自动注入：
+            if action_url.contains("InterFace.do") || action_url.contains("eportal") {
+                if !params.contains_key("queryString") {
+                    if let Some(detected) = detected_portal_url {
+                        if let Some(q_pos) = detected.find('?') {
+                            let qs = &detected[q_pos + 1..];
+                            if !qs.is_empty() {
+                                params.insert("queryString".to_string(), qs.to_string());
+                            }
+                        }
+                    }
+                }
+                if !params.contains_key("passwordEncrypt") {
+                    params.insert("passwordEncrypt".to_string(), "false".to_string());
+                }
+                if !params.contains_key("service") {
+                    params.insert("service".to_string(), "".to_string());
+                }
+                // 兼容 userId 别名
+                if let Some(username_val) = params.get("username").cloned() {
+                    params.entry("userId".to_string()).or_insert(username_val);
+                }
+            }
 
             let result = execute_http_auth(&config.auth.http, &action_url, &params);
 

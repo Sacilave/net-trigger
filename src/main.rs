@@ -31,8 +31,9 @@ fn main() {
     let _single_instance_guard = match acquire_single_instance_mutex() {
         Ok(handle) => handle,
         Err(_) => {
-            // 若已经在运行且用户手动双击唤起，弹出贴心提示告知已常驻托盘
+            // 若已经在运行且用户手动双击唤起，自动打开设置页面并弹出贴心提示
             if !is_auto_launch {
+                let _ = crate::auth::browser::open_browser_portal("http://127.0.0.1:48199/", false, false);
                 unsafe {
                     use windows_sys::Win32::UI::WindowsAndMessaging::{
                         MessageBoxW, MB_ICONINFORMATION, MB_OK, MB_TOPMOST,
@@ -41,11 +42,11 @@ fn main() {
                     let (title_str, msg_str) = match sys_lang {
                         config::Language::Zh => (
                             "NetTrigger 正在运行\0",
-                            "NetTrigger 已经在后台运行中。\n\n程序已常驻任务栏右下角托盘（若未显示，请点击“^”展开查看）。\n鼠标左键或右键托盘图标均可打开【设置】。\0",
+                            "NetTrigger 已经在后台运行中。\n\n程序已常驻任务栏右下角托盘（若未显示，请点击“^”展开查看）。\n已为您自动打开【设置】控制面板。\0",
                         ),
                         _ => (
                             "NetTrigger is already running\0",
-                            "NetTrigger is already running in the background.\n\nIt is minimized to the system tray (click '^' to show hidden icons if not visible).\nLeft-click or right-click the tray icon to open Settings.\0",
+                            "NetTrigger is already running in the background.\n\nIt is minimized to the system tray (click '^' to show hidden icons if not visible).\nSettings control panel has been opened.\0",
                         ),
                     };
                     let title: Vec<u16> = title_str.encode_utf16().collect();
@@ -146,11 +147,14 @@ fn main() {
         }
     };
 
-    // 首次开机自检
+    // 首次开机自检与即刻重连
     let initial_state = fsm.step_probe();
+    if initial_state != state::NetworkState::Online {
+        fsm.trigger_reconnect();
+    }
     let snap = fsm.snapshot();
     if let Some(ref mut mgr) = tray_mgr {
-        mgr.update_state(initial_state, snap.latency_ms, &app_name);
+        mgr.update_state(fsm.state(), snap.latency_ms, &app_name);
     }
 
     // 首次开机自检与托盘渲染就绪，安全回收冷启动期占用，常驻内存压缩至 ~1MB
