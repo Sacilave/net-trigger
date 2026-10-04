@@ -62,6 +62,7 @@ jobs:
           $x64Exe = "NetTrigger-${version}-windows-x64.exe"
           $x64Zip = "NetTrigger-${version}-windows-x64-portable.zip"
           Copy-Item "target/x86_64-pc-windows-msvc/release/NetTrigger.exe" -Destination $x64Exe
+          Copy-Item "target/x86_64-pc-windows-msvc/release/NetTrigger.exe" -Destination "NetTrigger.exe"
           
           $x64TempDir = "temp_x64"
           New-Item -ItemType Directory -Force -Path $x64TempDir | Out-Null
@@ -69,6 +70,7 @@ jobs:
           Copy-Item "config.example.toml" -Destination "$x64TempDir/config.example.toml"
           Copy-Item "README.md" -Destination "$x64TempDir/README.md"
           Compress-Archive -Path "$x64TempDir/*" -DestinationPath $x64Zip -Force
+          Copy-Item $x64Zip -Destination "NetTrigger-windows-x64-portable.zip"
           
           # 4. 复制 x86 (32位) 产物并打包
           $x86Exe = "NetTrigger-${version}-windows-x86.exe"
@@ -83,26 +85,32 @@ jobs:
           Compress-Archive -Path "$x86TempDir/*" -DestinationPath $x86Zip -Force
           
           # 5. 获取安装包文件名 (x64)
-          $setupExe = (Get-ChildItem -Path $distDir -Filter "*Setup.exe" | Select-Object -First 1).Name
+          $setupExeItem = Get-ChildItem -Path $distDir -Filter "*Setup.exe" | Select-Object -First 1
+          if ($setupExeItem) {
+            $setupExe = $setupExeItem.Name
+            Copy-Item "$distDir/$setupExe" -Destination "$distDir/NetTrigger-Setup.exe" -Force
+          }
           
           # 6. 生成所有产物的 SHA256 校验和
-          $setupHash = (Get-FileHash "$distDir/$setupExe" -Algorithm SHA256).Hash
           $x64ExeHash = (Get-FileHash $x64Exe -Algorithm SHA256).Hash
           $x64ZipHash = (Get-FileHash $x64Zip -Algorithm SHA256).Hash
           $x86ExeHash = (Get-FileHash $x86Exe -Algorithm SHA256).Hash
           $x86ZipHash = (Get-FileHash $x86Zip -Algorithm SHA256).Hash
           
           $checksumContent = @"
-          $setupHash  $setupExe
-          $x64ExeHash  $x64Exe
-          $x64ZipHash  $x64Zip
-          $x86ExeHash  $x86Exe
-          $x86ZipHash  $x86Zip
-          "@
+$x64ExeHash  $x64Exe
+$x64ZipHash  $x64Zip
+$x86ExeHash  $x86Exe
+$x86ZipHash  $x86Zip
+"@
+          if ($setupExeItem) {
+            $setupHash = (Get-FileHash "$distDir/$setupExe" -Algorithm SHA256).Hash
+            $checksumContent += "`n$setupHash  $setupExe"
+          }
           Set-Content -Path "checksums.txt" -Value $checksumContent
           
           Write-Host "打包成功:"
-          Write-Host "$setupExe SHA256: $setupHash"
+          if ($setupExeItem) { Write-Host "$setupExe SHA256: $setupHash" }
           Write-Host "$x64Exe SHA256: $x64ExeHash"
           Write-Host "$x64Zip SHA256: $x64ZipHash"
           Write-Host "$x86Exe SHA256: $x86ExeHash"
@@ -122,4 +130,6 @@ jobs:
             NetTrigger-v*-windows-x64-portable.zip
             NetTrigger-v*-windows-x86.exe
             NetTrigger-v*-windows-x86-portable.zip
+            NetTrigger.exe
+            NetTrigger-windows-x64-portable.zip
             checksums.txt

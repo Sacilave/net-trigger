@@ -35,34 +35,38 @@
 
 ### Step 1: Download Program
 
-Choose the edition that best suits your workflow (**if unsure, choose the 1st one: Setup Installer**):
+[👉 Click here to visit GitHub Releases for the latest versions](https://github.com/Sacilave/net-trigger/releases/latest)
 
-| Distribution | Target File (Which to download) | Direct Download Link | Best For | Features |
+You can directly download the latest release files below:
+
+| Distribution | Target File | Direct Download Link | Best For | Features |
 | :--- | :--- | :--- | :--- | :--- |
-| **Setup Installer (Recommended ⭐)** | **`NetTrigger-Setup.exe`** | [**Direct Download**](https://github.com/Sacilave/net-trigger/releases/latest/download/NetTrigger-Setup.exe) | Most students & everyday users | Standard setup wizard, no admin UAC prompt needed. **Automatically creates Start Menu & Desktop shortcuts**; supports "Pin to taskbar". |
-| **Portable Standalone Binary** | **`NetTrigger.exe`** | [**Direct Download**](https://github.com/Sacilave/net-trigger/releases/latest/download/NetTrigger.exe) | USB flash drive & portable usage | **Single file only ~1.88MB**, zero installation needed, extract and run anywhere without registry pollution. |
-| **Full Portable Zip Package** | **`NetTrigger-windows-x64-portable.zip`** | [**Direct Download**](https://github.com/Sacilave/net-trigger/releases/latest/download/NetTrigger-windows-x64-portable.zip) | Users wanting binary + config template + docs | Contains `NetTrigger.exe`, `config.example.toml` template, and documentation bundled together. |
+| **Portable Standalone Binary (Recommended ⭐)** | **`NetTrigger-v1.2.0-windows-x64.exe`** | [**Direct Download**](https://github.com/Sacilave/net-trigger/releases/download/v1.2.0/NetTrigger-v1.2.0-windows-x64.exe) | Most Windows 10/11 x64 users | **Single file only ~1.88MB**, zero installation needed, extract and run anywhere. |
+| **Full Portable Zip Package** | **`NetTrigger-v1.2.0-windows-x64-portable.zip`** | [**Direct Download**](https://github.com/Sacilave/net-trigger/releases/download/v1.2.0/NetTrigger-v1.2.0-windows-x64-portable.zip) | Users wanting binary + config template + docs | Contains `NetTrigger.exe`, `config.example.toml` template, and documentation bundled together. |
+| **32-Bit Windows Compatibility** | **`NetTrigger-v1.2.0-windows-x86.exe`** | [**Direct Download**](https://github.com/Sacilave/net-trigger/releases/download/v1.2.0/NetTrigger-v1.2.0-windows-x86.exe) | Legacy 32-bit Windows devices | Lightweight standalone binary for 32-bit environments. |
 
-> 📌 **Quick Tips for Beginners**:
-> 1. If browsing GitHub Releases and unsure which file to pick, look for the file ending in **`.exe`** (choose **`NetTrigger-Setup.exe`**);
-> 2. For all releases and detailed changelogs, visit [GitHub Releases](https://github.com/Sacilave/net-trigger/releases).
-> 3. 💡 **Pure & Lightweight Guarantee**: NetTrigger uses only ~1.8MB of RAM, 0.00% idle CPU, and operates cleanly with standard Windows user privileges (no administrator rights needed).
+> 📌 **Download Tips**:
+> 1. For complete historical versions and detailed changelogs, visit [GitHub Releases](https://github.com/Sacilave/net-trigger/releases);
+> 2. 💡 **Pure & Lightweight**: NetTrigger uses only ~1.8MB of RAM, strictly 0.00% idle CPU, and runs without administrator privileges.
 
-### Step 2: Configure Authentication (Choose One of Two Modes)
+### Step 2: Configure Authentication (Choose Your Mode)
 
-Supports two quick scenarios: **Campus Network** and **Public Network**.
+> 💡 **Core Tip**:
+> Campus network gateways vary widely (some enforce dynamic encryption, captcha, or anti-replay tokens). **If silent background authentication is unstable or fails to connect, simply switch to 【Browser Auto-Login】 mode**—it relies on your browser's saved passwords, ensuring the highest reliability and 100% gateway compatibility.
 
-#### Mode A: Browser Auto-Login / Remember Password (Default ⭐)
-If your campus, hotel, or dorm network supports remembering passwords in the browser:
-1. **Left-click** or **right-click** the tray icon ➔ Click **【Settings】**;
+#### Mode 1: Browser Auto-Login (Recommended · Most Reliable ⭐)
+Automatically launches your default browser upon disconnection, letting the browser auto-fill credentials:
+1. Click the tray icon ➔ Click **【Settings】**;
 2. Enter your captive portal login URL (or leave empty to let NetTrigger auto-detect upon disconnection);
 3. Click **【Save Settings】**.
+> **Advantage**: Immune to gateway encryption, tokens, or captcha changes. If you can log in via your browser, NetTrigger will reliably work.
 
-#### Mode B: Silent Background HTTP Authentication (Gaming / Zero-Distraction)
-If you want 100% foreground focus retention without any browser windows popping up:
-1. Open **【Settings】** ➔ Switch to the **【Silent Auto-Login (Recommended · No Popup)】** tab;
+#### Mode 2: Silent Background HTTP Authentication (No Popups)
+Executes HTTP authentication packets quietly in the background without stealing window focus:
+1. Open **【Settings】** ➔ Switch to the **【Silent Auto-Login】** tab;
 2. Press `F12` on your browser's login page, copy the login request as cURL, and paste it into the cURL auto-importer;
 3. Click **【Test Connection】** to verify gateway responses ➔ Click **【Save Settings】**.
+> **Note**: If test fails or the connection is unstable, **please switch back to 【Mode 1: Browser Auto-Login】**.
 
 ---
 
@@ -74,6 +78,8 @@ If you want 100% foreground focus retention without any browser windows popping 
 | **Srun (深澜软件)** | **Standard Protocol Support** | Not verified on physical hardware; 100% compatibility cannot be guaranteed | Press F12, Copy as cURL, and auto-import |
 | **Dr.COM (城市热点)** | **Standard Protocol Support** | Not verified on physical hardware; 100% compatibility cannot be guaranteed | Press F12, Copy as cURL, and auto-import |
 | **Huawei / Public Wi-Fi / Others** | **Standard Protocol Support** | Not verified on physical hardware; 100% compatibility cannot be guaranteed | Standard POST/GET supported; use provided AI prompt if encountering proprietary tokens |
+
+> 📌 **Practical Advice**: If silent background authentication fails or behaves unstably on your gateway, don't waste time wrestling with complex parameters—simply switch to **【Browser Auto-Login】** mode for guaranteed success.
 
 ---
 

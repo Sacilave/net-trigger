@@ -672,6 +672,10 @@
 
       <!-- 模式 2：后台自动连 (无弹窗) -->
       <div id="panel-http" style="display: none; flex-direction: column; gap: 14px;">
+        <div class="help-text" id="txt-http-fallback-tip" style="margin-top: 0; margin-bottom: 2px; color: var(--text-secondary); background: rgba(59, 130, 246, 0.08); border-radius: 8px; padding: 9px 13px; border: 1px solid rgba(59, 130, 246, 0.2); font-size: 13px; line-height: 1.5;">
+          💡 <b>提示</b>：若学校网关有动态加密导致后台静默连接不稳定，请直接切换上方【打开网页登录】模式，最稳定可靠。
+        </div>
+
         <div class="form-group">
           <label for="action_url" id="lbl-action-url">登录提交网址</label>
           <input type="text" id="action_url" placeholder="提交登录的网址，或使用下方【一键自动提取】">
@@ -849,6 +853,7 @@
         file_ok: "已在系统文本编辑器中打开 config.toml",
         file_fail: "无法打开配置文件",
         network_error: "网络错误",
+        http_fallback_tip: "💡 <b>提示</b>：若学校网关有动态加密导致后台静默连接不稳定，请直接切换上方【打开网页登录】模式，最稳定可靠。",
         curl_success: "已成功自动提取所有参数并填入表单！",
         timeout_status: "已休眠",
         timeout_title: "设置页面已休眠",
@@ -874,8 +879,8 @@
             guide_content: `<div class="guide-card" style="border-left: 3px solid var(--primary);">
   <div class="guide-card-title">极速模式选择（小白 3 秒做决定）</div>
   <div style="display: flex; flex-direction: column; gap: 8px;">
-    <div><b>1. 打开网页登录 (会弹网页)</b>：最简单，只需填登录网址。已在浏览器记住密码的用户直接用。掉线时自动弹出浏览器页面登录。</div>
-    <div><b>2. 后台自动连 (无弹窗·推荐)</b>：打游戏、看电影或开会首选！掉线后后台秒速自动登录，<b>0 弹窗、不夺焦点、游戏绝不切屏不卡顿</b>！</div>
+    <div><b>1. 打开网页登录 (会弹网页·推荐最稳定)</b>：最简单稳妥，只需填登录网址。由浏览器记住密码自动登录。<b>若后台静默连接不稳定，请务必直接使用此模式！</b></div>
+    <div><b>2. 后台自动连 (无弹窗)</b>：打游戏、看电影或开会首选！掉线后后台秒速自动登录，0 弹窗不切屏。<b>若连接失败请随时切回第 1 种模式</b>。</div>
   </div>
 </div>
 
@@ -1172,6 +1177,7 @@ WiFi 信息如下：
         file_ok: "Opened config.toml in default editor",
         file_fail: "Failed to open config file",
         network_error: "Network error",
+        http_fallback_tip: "💡 <b>Tip</b>: If silent background authentication is unstable on your gateway, simply switch to 【Open Webpage to Login】 above for maximum reliability.",
         curl_success: "All parameters extracted and filled successfully!",
         timeout_status: "Dormant",
         timeout_title: "Settings Session Timed Out",
@@ -1197,8 +1203,8 @@ WiFi 信息如下：
             guide_content: `<div class="guide-card" style="border-left: 3px solid var(--primary);">
   <div class="guide-card-title">Quick Mode Selection (3 Seconds)</div>
   <div style="display: flex; flex-direction: column; gap: 8px;">
-    <div><b>1. Open Webpage to Login (Popup)</b>: Zero technical setup. Opens browser when disconnected. Best if credentials are saved in browser.</div>
-    <div><b>2. Silent Auto-Login (No Popup) · Recommended</b>: Ideal for gaming, streaming, or video calls! Reconnects in 0.05s in the background without popups or losing window focus.</div>
+    <div><b>1. Open Webpage to Login (Most Reliable ⭐)</b>: Opens browser when disconnected. Best if credentials are saved in browser. <b>Use this mode if silent mode fails!</b></div>
+    <div><b>2. Silent Auto-Login (No Popup)</b>: Ideal for gaming, streaming, or video calls! Reconnects in background. Switch back to Mode 1 if connection fails.</div>
   </div>
 </div>
 
@@ -1572,6 +1578,7 @@ Login information:
 
       const elTabB = document.getElementById('tab-browser-txt'); if (elTabB) elTabB.innerText = t.tab_browser;
       const elTabH = document.getElementById('tab-http-txt'); if (elTabH) elTabH.innerText = t.tab_http;
+      const elFallbackTip = document.getElementById('txt-http-fallback-tip'); if (elFallbackTip && t.http_fallback_tip) elFallbackTip.innerHTML = t.http_fallback_tip;
       const elAdv = document.getElementById('txt-advanced-summary'); if (elAdv) elAdv.innerText = t.advanced_summary;
       const elCurlLbl = document.getElementById('lbl-curl-import'); if (elCurlLbl) elCurlLbl.innerText = t.curl_label;
       const elCurlIn = document.getElementById('curl-input'); if (elCurlIn) elCurlIn.placeholder = t.curl_ph;
