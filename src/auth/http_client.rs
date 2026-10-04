@@ -531,6 +531,17 @@ fn send_bound_http_post(
 }
 
 #[cfg(windows)]
+fn ensure_winsock_initialized() {
+    use std::sync::Once;
+    static INIT: Once = Once::new();
+    INIT.call_once(|| unsafe {
+        use windows_sys::Win32::Networking::WinSock::{WSAStartup, WSADATA};
+        let mut wsa_data: WSADATA = std::mem::zeroed();
+        WSAStartup(0x0202, &mut wsa_data);
+    });
+}
+
+#[cfg(windows)]
 fn connect_lan_bound_tcp(
     remote_ip: &str,
     port: u16,
@@ -538,6 +549,8 @@ fn connect_lan_bound_tcp(
 ) -> std::io::Result<std::net::TcpStream> {
     use std::os::windows::io::FromRawSocket;
     use windows_sys::Win32::Networking::WinSock::*;
+
+    ensure_winsock_initialized();
 
     let local_lan_ip = crate::config::get_lan_adapter_ipv4();
     let remote_v4 = match remote_ip.parse::<std::net::Ipv4Addr>() {

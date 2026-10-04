@@ -194,6 +194,17 @@ impl Probe {
                         .header("Location")
                         .or_else(|| response.header("location"))
                         .map(|s| s.trim().to_string());
+
+                    // 特征识别：若网关 302 重定向到成功页面 (如 redirectortosuccess.jsp / success.jsp)，权威判定用户已登录在线！
+                    if let Some(ref loc) = location {
+                        if loc.contains("redirectortosuccess.jsp")
+                            || loc.contains("success.jsp")
+                            || loc.contains("success.html")
+                        {
+                            return Ok(ProbeStatus::Online);
+                        }
+                    }
+
                     return Ok(ProbeStatus::CaptivePortal {
                         redirect_url: location,
                     });
@@ -288,6 +299,16 @@ impl Probe {
                         .header("Location")
                         .or_else(|| response.header("location"))
                         .map(|s| s.trim().to_string());
+
+                    if let Some(ref loc) = location {
+                        if loc.contains("redirectortosuccess.jsp")
+                            || loc.contains("success.jsp")
+                            || loc.contains("success.html")
+                        {
+                            return Ok(ProbeStatus::Online);
+                        }
+                    }
+
                     return Ok(ProbeStatus::CaptivePortal {
                         redirect_url: location,
                     });
@@ -303,6 +324,16 @@ impl Probe {
                         .header("Location")
                         .or_else(|| response.header("location"))
                         .map(|s| s.trim().to_string());
+
+                    if let Some(ref loc) = location {
+                        if loc.contains("redirectortosuccess.jsp")
+                            || loc.contains("success.jsp")
+                            || loc.contains("success.html")
+                        {
+                            return Ok(ProbeStatus::Online);
+                        }
+                    }
+
                     return Ok(ProbeStatus::CaptivePortal {
                         redirect_url: location,
                     });
