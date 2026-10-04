@@ -2,7 +2,7 @@
 ; 支持自动创建开始菜单快捷方式（可直接固定到任务栏/开始屏幕）与桌面快捷方式
 
 #define MyAppName "NetTrigger"
-#define MyAppVersion "1.0.0"
+#define MyAppVersion "1.1.0"
 #define MyAppPublisher "Sacilave"
 #define MyAppURL "https://github.com/Sacilave/net-trigger"
 #define MyAppExeName "NetTrigger.exe"

@@ -1,6 +1,6 @@
 [package]
 name = "nettrigger"
-version = "1.0.0"
+version = "1.1.0"
 edition = "2021"
 authors = ["Sacilave <sacilave@gmail.com>"]
 repository = "https://github.com/Sacilave/net-trigger"
@@ -36,6 +36,7 @@ features = [
     "Win32_Networking_WinSock",
     "Win32_System_Registry",
     "Win32_System_SystemInformation",
+    "Win32_System_Com",
     "Win32_UI_Shell",
     "Win32_UI_WindowsAndMessaging",
 ]

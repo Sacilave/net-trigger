@@ -13,8 +13,8 @@ impl AuthExecutor {
     /// 执行认证流水线
     ///
     /// 自动根据配置的 mode ("browser" / "http") 派发执行：
-    /// - "browser" (极简·网页自登录)：无需用户名密码，掉线时尝试轻量静默预访问并拉起网页由浏览器记住密码自动登录；
-    /// - "http" (进阶·后台静默)：根据配置好的账号密码后台静默发包，打游戏不切屏。
+    /// - "browser" (自动打开网页登录·有弹窗)：无需用户名密码，掉线时唤起浏览器由已保存密码自动登录；
+    /// - "http" (后台静默登录·无弹窗)：根据配置后台静默发包，打游戏不弹窗不切屏。
     pub fn execute(config: &Config) -> AuthResult {
         let mode = config.auth.mode.to_lowercase();
 

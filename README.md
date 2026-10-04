@@ -1,5 +1,7 @@
 # NetTrigger ⚡
 
+[English](README_EN.md) | **简体中文**
+
 **专为 Windows 平台打造的原生、超轻量（RAM < 2MB）、毫秒级事件响应的网络状态感知与校园网自动化重连守护引擎**
 
 [![Release](https://img.shields.io/badge/Release-v1.0.0-blue.svg)](https://github.com/Sacilave/net-trigger/releases)
@@ -16,7 +18,7 @@
 ## 📌 快速导航目录
 
 - [🚀 30 秒极速上手（下载与使用）](#-30-秒极速上手)
-  - [步骤 1：下载程序](#步骤-1下载程序-两种形式任选)
+  - [步骤 1：下载程序](#步骤-1下载程序)
   - [步骤 2：配置认证](#步骤-2配置认证-两种模式任选)
 - [💡 核心指标横向对比](#-核心指标横向对比)
 - [⚡ 核心技术特性](#-核心技术特性)
@@ -29,14 +31,20 @@
 
 ## 🚀 30 秒极速上手
 
-### 步骤 1：下载程序 (两种形式任选)
+### 步骤 1：下载程序
 
-| 版本形式 | 适用对象 | 下载地址 | 特点 |
-| :--- | :--- | :--- | :--- |
-| **一键安装版 (推荐 ⭐)** | 绝大多数学生、普通用户 | [**`NetTrigger-Setup.exe`**](https://github.com/Sacilave/net-trigger/releases) | 免 UAC 提权弹窗，**自动在开始菜单与桌面创建快捷方式**，支持在开始菜单右键一键“固定到任务栏”。 |
-| **便携绿色单文件** | 极客、U 盘随身携带党 | [**`NetTrigger.exe`**](https://github.com/Sacilave/net-trigger/releases) | 单文件免安装，解压即用，不写任何安装目录。 |
+请根据你的使用习惯选择对应版本下载（**如果不确定选哪个，请直接选第 1 个一键安装版**）：
 
-> 💡 **绿色纯净保证**：本程序常驻内存仅 1.8MB，CPU 严格 0.00%，已通过 Windows 原生免 UAC 认证安全管理。
+| 版本名称 | 目标文件名（下载哪个文件） | 官方高速下载直链 | 适用人群 | 特点说明 |
+| :--- | :--- | :--- | :--- | :--- |
+| **一键安装版 (强烈推荐 ⭐)** | **`NetTrigger-Setup.exe`** | [**点击直接下载**](https://github.com/Sacilave/net-trigger/releases/latest/download/NetTrigger-Setup.exe) | 绝大多数学生、普通用户、不想手动放文件的同学 | 双击一路点击“下一步”即可完成安装，免管理员弹窗。**自动在开始菜单与桌面创建图标**，支持在开始菜单右键“固定到任务栏”，最省心方便。 |
+| **便携单文件 (U盘携带版)** | **`NetTrigger.exe`** | [**点击直接下载**](https://github.com/Sacilave/net-trigger/releases/latest/download/NetTrigger.exe) | U 盘随身携带、喜欢自己管理文件夹的用户 | **单个文件仅 ~1.88MB**，无需安装，解压即用，不写任何系统安装目录，放在 U 盘或任意文件夹双击直接运行。 |
+| **完整便携压缩包** | **`NetTrigger-windows-x64-portable.zip`** | [**点击直接下载**](https://github.com/Sacilave/net-trigger/releases/latest/download/NetTrigger-windows-x64-portable.zip) | 希望完整保存配置模板与说明文档的用户 | 压缩包内打包了 `NetTrigger.exe` 主程序、`config.example.toml` 配置模板和使用说明文档，解压到任意目录即可使用。 |
+
+> 📌 **小白下载小贴士**：
+> 1. 如果你在 Releases 发布页看到多个文件，小白用户请认准以 **`.exe`** 结尾的文件（优先选择 **`NetTrigger-Setup.exe`**）；
+> 2. 如需查看全部历史版本及详细更新日志，请访问 [GitHub Releases 发布主页](https://github.com/Sacilave/net-trigger/releases)。
+> 3. 💡 **绿色纯净保证**：本程序常驻物理内存仅 1.8MB，CPU 严格 0.00%，已通过 Windows 原生免 UAC 认证安全管理。
 
 ### 步骤 2：配置认证 (两种模式任选)
 
@@ -116,6 +124,7 @@ flowchart LR
   | 🌐 打开登录网页                     |  <-- 浏览器快速登录通道
   |------------------------------------|
   | ⚙️ 设置                             |  <-- 打开极简控制中心 (左键亦可打开)
+  | 🌐 Language / 语言        ▶       |  <-- 原生就地切换子菜单 (Auto / English / 简体中文)
   |------------------------------------|
   | [√] 开机自启动                     |  <-- 点击切换开机自启 (免管理员提权)
   | [√] 静默模式 (免打扰)              |  <-- 开启后连网成功不弹任何通知气泡

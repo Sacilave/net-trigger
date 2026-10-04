@@ -89,9 +89,11 @@ impl Drop for NetworkWatcherHandle {
 ///
 /// - `debounce_ms`: 链路稳定防抖窗口（毫秒）
 /// - `sender`: 接收网络变更通知的通道
+/// - `main_thread_id`: 主线程 ID，用于网络变动时以 PostThreadMessageW 瞬时唤醒主线程 (0 表示不唤醒)
 pub fn start_network_watcher(
     debounce_ms: u64,
     sender: Sender<NetworkEvent>,
+    main_thread_id: u32,
 ) -> Result<NetworkWatcherHandle, WatcherError> {
     let stop_signal = Arc::new(AtomicBool::new(false));
     let stop_signal_clone = Arc::clone(&stop_signal);
@@ -154,14 +156,15 @@ pub fn start_network_watcher(
                             // 物理网卡重新建立连接后，等待 DHCP 与本地路由完全稳定
                             thread::sleep(Duration::from_millis(debounce_ms.max(20)));
 
-                            // 消费掉防抖期间可能堆积的重复信号
-                            while WaitForMultipleObjects(1, &net_event, 0, 0) == WAIT_OBJECT_0 {
-                                thread::sleep(Duration::from_millis(10));
-                            }
-
                             // 发送防抖后的有效网络变动通知
                             if sender.send(NetworkEvent::NetworkChanged).is_err() {
                                 break;
+                            }
+
+                            // 极速内核唤醒：投递线程消息即刻唤醒主线程中的 MsgWaitForMultipleObjects (< 0.1ms 零延迟)
+                            if main_thread_id != 0 {
+                                use windows_sys::Win32::UI::WindowsAndMessaging::{PostThreadMessageW, WM_APP};
+                                PostThreadMessageW(main_thread_id, WM_APP, 0, 0);
                             }
                         } else {
                             // 句柄或系统异常
@@ -187,6 +190,7 @@ pub fn start_network_watcher(
 
     #[cfg(not(windows))]
     {
+        let _ = main_thread_id;
         let thread_handle = thread::Builder::new()
             .name("NetTrigger-Watcher-Mock".to_string())
             .spawn(move || {
@@ -212,7 +216,7 @@ mod tests {
     #[test]
     fn test_network_watcher_lifecycle() {
         let (tx, rx) = channel();
-        let handle_res = start_network_watcher(50, tx);
+        let handle_res = start_network_watcher(50, tx, 0);
         assert!(handle_res.is_ok(), "网络监听器必须能够顺利启动");
 
         if let Ok(mut handle) = handle_res {

@@ -73,6 +73,50 @@ pub fn is_autostart_enabled() -> bool {
     }
 }
 
+/// 自动自愈与升级注册表中的开机自启动项，确保携带 --autostart 参数
+pub fn sync_and_heal_autostart_registry() {
+    #[cfg(windows)]
+    {
+        use windows_sys::Win32::System::Registry::{
+            RegCloseKey, RegOpenKeyExW, RegQueryValueExW, HKEY, HKEY_CURRENT_USER, KEY_READ,
+        };
+
+        let subkey_wide: Vec<u16> = format!("{}\0", REG_RUN_SUBKEY).encode_utf16().collect();
+        let value_name_wide: Vec<u16> = format!("{}\0", REG_APP_NAME).encode_utf16().collect();
+
+        let mut needs_healing = false;
+        unsafe {
+            let mut hkey: HKEY = std::ptr::null_mut();
+            if RegOpenKeyExW(HKEY_CURRENT_USER, subkey_wide.as_ptr(), 0, KEY_READ, &mut hkey) == 0 {
+                let mut data = [0u16; 512];
+                let mut data_len = (data.len() * std::mem::size_of::<u16>()) as u32;
+                let query_res = RegQueryValueExW(
+                    hkey,
+                    value_name_wide.as_ptr(),
+                    std::ptr::null_mut(),
+                    std::ptr::null_mut(),
+                    data.as_mut_ptr() as *mut u8,
+                    &mut data_len,
+                );
+                RegCloseKey(hkey);
+
+                if query_res == 0 && data_len > 0 {
+                    let chars_len = (data_len as usize) / std::mem::size_of::<u16>();
+                    let reg_val = String::from_utf16_lossy(&data[..chars_len]);
+                    // 如果已经设置了自启动但缺少 --autostart 标识，标记自愈
+                    if !reg_val.contains("--autostart") {
+                        needs_healing = true;
+                    }
+                }
+            }
+        }
+
+        if needs_healing {
+            let _ = set_autostart(true);
+        }
+    }
+}
+
 /// 启用或关闭开机自启动
 pub fn set_autostart(enable: bool) -> Result<(), AutoStartError> {
     #[cfg(windows)]
@@ -156,5 +200,10 @@ mod tests {
     fn test_autostart_query_does_not_crash() {
         // 查询操作必须绝对稳定且不崩溃
         let _ = is_autostart_enabled();
+    }
+
+    #[test]
+    fn test_sync_and_heal_autostart_registry() {
+        sync_and_heal_autostart_registry();
     }
 }

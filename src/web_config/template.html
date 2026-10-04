@@ -18,7 +18,8 @@
       --primary-hover: #1d4ed8;
       --success: #10b981;
       --danger: #ef4444;
-      --radius: 8px;
+      --warning: #f59e0b;
+      --radius: 10px;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -28,31 +29,33 @@
       min-height: 100vh;
       display: flex;
       justify-content: center;
-      padding: 36px 16px;
+      padding: 40px 18px;
+      font-size: 14.5px;
+      line-height: 1.5;
       -webkit-font-smoothing: antialiased;
     }
     .wrapper {
       width: 100%;
-      max-width: 640px;
+      max-width: 740px;
       display: flex;
       flex-direction: column;
-      gap: 20px;
+      gap: 22px;
     }
     /* 顶部导航 */
     header {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding-bottom: 8px;
+      padding-bottom: 6px;
     }
     .brand {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 14px;
     }
     .brand-icon {
-      width: 32px;
-      height: 32px;
+      width: 38px;
+      height: 38px;
       background: var(--surface-elevated);
       border: 1px solid var(--border);
       border-radius: var(--radius);
@@ -60,44 +63,92 @@
       align-items: center;
       justify-content: center;
       color: #60a5fa;
+      flex-shrink: 0;
     }
     h1 {
-      font-size: 18px;
+      font-size: 21px;
       font-weight: 600;
       color: var(--text);
       letter-spacing: -0.3px;
     }
     .subtitle {
-      font-size: 12px;
+      font-size: 13px;
       color: var(--text-muted);
-      margin-top: 2px;
+      margin-top: 3px;
     }
     .status-pill {
       display: inline-flex;
       align-items: center;
-      gap: 6px;
-      padding: 4px 10px;
+      gap: 7px;
+      padding: 5px 12px;
       background: rgba(16, 185, 129, 0.1);
-      border: 1px solid rgba(16, 185, 129, 0.2);
+      border: 1px solid rgba(16, 185, 129, 0.25);
       border-radius: 9999px;
-      font-size: 12px;
+      font-size: 13px;
       color: var(--success);
       font-weight: 500;
+      line-height: 1;
+      white-space: nowrap;
+      flex-shrink: 0;
+      transition: all 0.2s ease;
+    }
+    .status-pill.dormant {
+      background: rgba(245, 158, 11, 0.12);
+      border-color: rgba(245, 158, 11, 0.35);
+      color: var(--warning);
     }
     .status-dot {
-      width: 6px;
-      height: 6px;
+      width: 7px;
+      height: 7px;
       border-radius: 50%;
       background: currentColor;
+      flex-shrink: 0;
+    }
+    /* 超时警告横幅 */
+    .timeout-banner {
+      background: rgba(245, 158, 11, 0.1);
+      border: 1px solid rgba(245, 158, 11, 0.35);
+      border-radius: 12px;
+      padding: 14px 18px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      animation: fadeIn 0.25s ease;
+    }
+    .timeout-icon-wrap {
+      flex-shrink: 0;
+      color: #fbbf24;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .timeout-body {
+      flex: 1;
+    }
+    .timeout-title {
+      font-size: 14.5px;
+      font-weight: 600;
+      color: #fef3c7;
+      margin-bottom: 3px;
+    }
+    .timeout-desc {
+      font-size: 13px;
+      line-height: 1.5;
+      color: #fde68a;
+    }
+    .btn-sm {
+      padding: 7px 14px;
+      font-size: 12.5px;
+      white-space: nowrap;
     }
     /* 分段选择器 Segmented Control */
     .segmented-control {
       display: flex;
       background: var(--surface);
       border: 1px solid var(--border);
-      padding: 3px;
-      border-radius: 10px;
-      gap: 4px;
+      padding: 4px;
+      border-radius: 12px;
+      gap: 5px;
     }
     .segment-btn {
       flex: 1;
@@ -105,73 +156,74 @@
       align-items: center;
       justify-content: center;
       gap: 8px;
-      padding: 9px 14px;
+      padding: 11px 16px;
       background: transparent;
       border: none;
       color: var(--text-secondary);
-      font-size: 13px;
+      font-size: 14px;
       font-weight: 500;
-      border-radius: 7px;
+      border-radius: 8px;
       cursor: pointer;
       transition: all 0.15s ease;
     }
     .segment-btn.active {
       background: var(--surface-elevated);
       color: var(--text);
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
     }
     /* 卡片面板 */
     .card {
       background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 20px;
+      border-radius: 14px;
+      padding: 24px 28px;
       display: flex;
       flex-direction: column;
-      gap: 16px;
+      gap: 18px;
     }
     .form-group {
       display: flex;
       flex-direction: column;
-      gap: 6px;
+      gap: 7px;
     }
     label {
-      font-size: 13px;
-      font-weight: 500;
+      font-size: 14px;
+      font-weight: 550;
       color: var(--text);
     }
     .help-text {
-      font-size: 12px;
+      font-size: 13px;
       color: var(--text-muted);
-      line-height: 1.5;
+      line-height: 1.55;
     }
     input[type="text"], input[type="password"], textarea, select {
       width: 100%;
       background: var(--bg);
       border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 9px 12px;
+      border-radius: 9px;
+      padding: 10px 14px;
       color: var(--text);
-      font-size: 13px;
+      font-size: 14px;
       outline: none;
-      transition: border-color 0.15s ease;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
       font-family: inherit;
     }
     input:focus, textarea:focus, select:focus {
       border-color: var(--border-focus);
+      box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
     }
     .row {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 12px;
+      gap: 14px;
     }
     /* 折叠抽屉 */
     details {
       border-top: 1px solid var(--border);
-      padding-top: 12px;
+      padding-top: 14px;
     }
     summary {
-      font-size: 12px;
+      font-size: 13px;
       color: var(--text-secondary);
       cursor: pointer;
       user-select: none;
@@ -182,22 +234,22 @@
     }
     summary:hover { color: var(--text); }
     .details-content {
-      padding-top: 12px;
+      padding-top: 14px;
       display: flex;
       flex-direction: column;
-      gap: 12px;
+      gap: 14px;
     }
     /* 运行档位单选行 */
     .profile-selector {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: 8px;
+      gap: 10px;
     }
     .profile-pill {
       border: 1px solid var(--border);
       background: var(--bg);
-      padding: 8px;
-      border-radius: var(--radius);
+      padding: 10px 8px;
+      border-radius: 9px;
       text-align: center;
       cursor: pointer;
       transition: all 0.15s;
@@ -205,11 +257,24 @@
     .profile-pill:hover { border-color: rgba(255, 255, 255, 0.2); }
     .profile-pill.active {
       border-color: var(--primary);
-      background: rgba(37, 99, 235, 0.08);
+      background: rgba(37, 99, 235, 0.1);
       color: #93c5fd;
     }
-    .profile-pill-title { font-size: 12px; font-weight: 500; }
-    .profile-pill-desc { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+    .profile-pill-title {
+      font-size: 14.5px;
+      font-weight: 700;
+      letter-spacing: -0.2px;
+      color: var(--text);
+    }
+    .profile-pill.active .profile-pill-title {
+      color: #bfdbfe;
+    }
+    .profile-pill-desc {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 4px;
+      font-weight: 500;
+    }
     /* 复选框行 */
     .checkbox-row {
       display: flex;
@@ -220,12 +285,12 @@
     .checkbox-label {
       display: flex;
       align-items: center;
-      gap: 8px;
-      font-size: 13px;
+      gap: 9px;
+      font-size: 13.5px;
       color: var(--text-secondary);
       cursor: pointer;
     }
-    .checkbox-label input { width: auto; cursor: pointer; }
+    .checkbox-label input { width: 16px; height: 16px; cursor: pointer; }
     /* 底部操作条 */
     .actions-bar {
       display: flex;
@@ -236,10 +301,10 @@
     .btn {
       display: inline-flex;
       align-items: center;
-      gap: 6px;
-      padding: 9px 16px;
-      border-radius: var(--radius);
-      font-size: 13px;
+      gap: 7px;
+      padding: 10px 18px;
+      border-radius: 9px;
+      font-size: 13.5px;
       font-weight: 500;
       border: none;
       cursor: pointer;
@@ -259,10 +324,10 @@
     /* 提示横幅 */
     .notice {
       display: none;
-      font-size: 13px;
-      padding: 10px 14px;
-      border-radius: var(--radius);
-      line-height: 1.4;
+      font-size: 13.5px;
+      padding: 12px 16px;
+      border-radius: 10px;
+      line-height: 1.45;
       animation: fadeIn 0.2s ease;
     }
     .notice.success {
@@ -271,11 +336,209 @@
       color: #6ee7b7;
     }
     .notice.error {
-      background: rgba(239, 68, 68, 0.12);
-      border: 1px solid rgba(239, 68, 68, 0.3);
+      background: rgba(239, 68, 68, 0.14);
+      border: 1px solid rgba(239, 68, 68, 0.35);
       color: #fca5a5;
     }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* 2K / 4K 高分屏自适应放大 */
+    @media (min-width: 1400px) {
+      .wrapper {
+        max-width: 840px;
+        gap: 26px;
+      }
+      body {
+        font-size: 16px;
+        padding: 50px 24px;
+      }
+      h1 { font-size: 24px; }
+      .subtitle { font-size: 14px; }
+      .brand-icon { width: 44px; height: 44px; }
+      .brand-icon svg { width: 22px; height: 22px; }
+      .status-pill { font-size: 14px; padding: 6px 14px; }
+      .segment-btn { font-size: 15px; padding: 13px 20px; }
+      .card { padding: 30px 34px; gap: 22px; border-radius: 16px; }
+      label { font-size: 15px; }
+      .help-text { font-size: 13.5px; }
+      input[type="text"], input[type="password"], textarea, select {
+        font-size: 15px;
+        padding: 12px 16px;
+        border-radius: 10px;
+      }
+      .profile-pill { padding: 12px 10px; border-radius: 10px; }
+      .profile-pill-title { font-size: 16px; }
+      .profile-pill-desc { font-size: 13px; }
+      .checkbox-label { font-size: 14.5px; }
+      .btn { font-size: 14.5px; padding: 12px 22px; border-radius: 10px; }
+      .timeout-banner { font-size: 15px; padding: 16px 22px; }
+      .timeout-title { font-size: 16px; }
+      .timeout-desc { font-size: 14px; }
+      .btn-sm { font-size: 13.5px; padding: 8px 16px; }
+    }
+
+    @media (max-width: 600px) {
+      .row { grid-template-columns: 1fr; }
+      .profile-selector { grid-template-columns: 1fr; }
+      .actions-bar { flex-direction: column-reverse; gap: 12px; }
+      .actions-bar > div { width: 100%; justify-content: space-between; }
+      #btn-save { width: 100%; justify-content: center; }
+    }
+
+    /* 设置指南模态框与极简指引 */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(5px);
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      animation: fadeIn 0.18s ease;
+    }
+    .modal-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      width: 100%;
+      max-width: 660px;
+      max-height: 86vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
+      overflow: hidden;
+      animation: scaleIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    @keyframes scaleIn {
+      from { transform: scale(0.96); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+    .modal-header {
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--surface-elevated);
+    }
+    .modal-title-wrap {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .modal-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+    .modal-close-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-secondary);
+      cursor: pointer;
+      padding: 5px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s ease;
+    }
+    .modal-close-btn:hover {
+      background: var(--border);
+      color: var(--text-primary);
+    }
+    .modal-body {
+      padding: 20px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      font-size: 13px;
+      line-height: 1.6;
+      color: var(--text-secondary);
+    }
+    .guide-card {
+      background: var(--surface-elevated);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 16px;
+    }
+    .guide-card-title {
+      font-size: 13.5px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .guide-step-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 6px;
+    }
+    .guide-step-item {
+      display: flex;
+      gap: 8px;
+      align-items: flex-start;
+    }
+    .guide-step-badge {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: var(--primary);
+      color: #fff;
+      font-size: 11px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+    .guide-step-text {
+      flex: 1;
+      font-size: 12.5px;
+    }
+    .guide-step-text strong {
+      color: var(--text-primary);
+    }
+    .school-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 6px;
+    }
+    @media (max-width: 560px) {
+      .school-grid { grid-template-columns: 1fr; }
+    }
+    .school-box {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px;
+      font-size: 12px;
+    }
+    .school-box-title {
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .code-chip {
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid var(--border);
+      padding: 1px 5px;
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: 11.5px;
+      color: #93c5fd;
+    }
   </style>
 </head>
 <body>
@@ -290,17 +553,51 @@
           </svg>
         </div>
         <div>
-          <h1>NetTrigger 设置</h1>
-          <div class="subtitle">网络事件自动化感知与无感重连守护</div>
+          <h1 id="txt-title">NetTrigger 设置</h1>
+          <div class="subtitle" id="txt-subtitle">网络事件自动化感知与无感重连守护</div>
         </div>
       </div>
-      <div class="status-pill">
-        <div class="status-dot"></div>
-        <span id="header-status">守护中</span>
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <button type="button" class="btn btn-secondary btn-sm" onclick="openGuideModal()" id="btn-guide" style="display: flex; align-items: center; gap: 5px; cursor: pointer; padding: 5px 11px;" title="查看校园网配置步骤与避坑指南">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+            <line x1="12" y1="17" x2="12.01" y2="17"></line>
+          </svg>
+          <span id="btn-guide-txt">校园网设置指南</span>
+        </button>
+        <select id="lang-selector" onchange="changeLanguage(this.value)" style="padding: 4px 8px; font-size: 12px; background: var(--surface-elevated); border: 1px solid var(--border); border-radius: var(--radius); color: var(--text-secondary); cursor: pointer; outline: none;">
+          <option value="auto">🌐 自动 / Auto</option>
+          <option value="zh">简体中文</option>
+          <option value="en">English</option>
+        </select>
+        <div class="status-pill">
+          <div class="status-dot"></div>
+          <span id="header-status">守护中</span>
+        </div>
       </div>
     </header>
 
     <div id="msg-box" class="notice"></div>
+
+    <!-- 超时断开休眠提示横幅 -->
+    <div id="timeout-banner" class="timeout-banner" style="display: none;">
+      <div class="timeout-icon-wrap">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="12" y1="8" x2="12" y2="12"></line>
+          <line x1="12" y1="16" x2="12.01" y2="16"></line>
+        </svg>
+      </div>
+      <div class="timeout-body">
+        <div class="timeout-title" id="txt-timeout-title">当前设置服务已超时休眠</div>
+        <div class="timeout-desc" id="txt-timeout-desc">
+          为保证 0% CPU 与极轻内存（&lt;2MB），后台服务在空闲 5 分钟后已自动关闭。<br>
+          <b>如需保存修改：请在电脑右下角任务栏托盘图标重新点击【⚙️ 设置】唤醒。</b>
+        </div>
+      </div>
+      <button type="button" class="btn btn-secondary btn-sm" onclick="checkOrReconnect()" id="btn-reconnect-txt">检测连通</button>
+    </div>
 
     <!-- 模式分段选择器 -->
     <div class="segmented-control">
@@ -310,7 +607,7 @@
           <line x1="2" y1="12" x2="22" y2="12"></line>
           <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
         </svg>
-        网页自动登录 (记住密码)
+        <span id="tab-browser-txt">自动打开网页登录 (有弹窗)</span>
       </button>
       <button type="button" class="segment-btn" id="tab-http" onclick="switchMode('http')">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -319,20 +616,20 @@
           <line x1="6" y1="6" x2="6.01" y2="6"></line>
           <line x1="6" y1="18" x2="6.01" y2="18"></line>
         </svg>
-        后台静默登录 (游戏免切屏)
+        <span id="tab-http-txt">后台静默登录 (无弹窗)</span>
       </button>
     </div>
 
     <!-- 主表单卡片 -->
     <div class="card">
-      <!-- 模式 1：网页自动登录 (极简，只需填网址) -->
+      <!-- 模式 1：自动打开网页登录 (有弹窗) -->
       <div id="panel-browser">
         <div class="form-group">
-          <label for="portal_url">校园网 / 认证登录网址</label>
+          <label for="portal_url" id="lbl-portal-url">校园网 / 认证登录网址</label>
           <input type="text" id="portal_url" placeholder="例如: http://10.10.1.1/ 或 http://portal.univ.edu/">
-          <div class="help-text">
-            检测到掉线或拦截时，将自动访问该网址，由浏览器记住的密码快速完成登录。<br>
-            <b>无需在此填写任何账号和密码</b>，适合已在 Edge/Chrome 中勾选了“记住密码”的校园网。
+          <div class="help-text" id="txt-browser-help">
+            检测到掉线或拦截时，将自动调用系统浏览器打开该网址（会有前台弹窗/切屏），由浏览器记住的密码完成登录。<br>
+            <b>无需在此填写任何账号和密码</b>。
           </div>
         </div>
       </div>
@@ -340,17 +637,17 @@
       <!-- 模式 2：后台静默模拟登录 (需配置账号密码) -->
       <div id="panel-http" style="display: none; flex-direction: column; gap: 14px;">
         <div class="form-group">
-          <label for="action_url">登录接口提交地址 (Action URL)</label>
-          <input type="text" id="action_url" placeholder="http://portal.univ.edu/api/login">
+          <label for="action_url" id="lbl-action-url">登录网址</label>
+          <input type="text" id="action_url" placeholder="例如: http://10.10.1.1/api/login 或认证放行网址">
         </div>
 
         <div class="row">
           <div class="form-group">
-            <label for="username">用户名 / 学号</label>
+            <label for="username" id="lbl-username">用户名 / 学号</label>
             <input type="text" id="username" placeholder="学号或宽带账号">
           </div>
           <div class="form-group">
-            <label for="password">认证密码</label>
+            <label for="password" id="lbl-password">认证密码</label>
             <input type="password" id="password" placeholder="认证密码">
           </div>
         </div>
@@ -361,27 +658,40 @@
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <polyline points="6 9 12 15 18 9"></polyline>
             </svg>
-            进阶选项：F12 cURL 一键解析与自定义参数
+            <span id="txt-advanced-summary">🛠️ 高级参数与一键自动提取 (推荐小白使用)</span>
           </summary>
           <div class="details-content">
+            <!-- 30秒极速提取指引框 -->
+            <div style="background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.25); border-radius: 8px; padding: 10px 14px; font-size: 12.5px; line-height: 1.55; color: var(--text-secondary); margin-bottom: 12px;">
+              <div style="font-weight: 600; color: #93c5fd; margin-bottom: 4px; display: flex; align-items: center; gap: 6px;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                <span id="txt-curl-tip-title">不知道接口怎么填？30 秒全自动提取：</span>
+              </div>
+              <div id="txt-curl-tip-desc">
+                ① 浏览器打开校园网登录页，按键盘 <b>F12</b> ➔ 切换到 <b>Network (网络)</b> 标签；<br>
+                ② 输入账号密码点击登录 ➔ 在请求列表中右键登录请求 ➔ 选 <b>Copy as cURL</b>；<br>
+                ③ 粘贴在下方并点击【自动提取填充】，所有参数将全自动配置好！
+              </div>
+            </div>
+
             <div class="form-group">
-              <label>从浏览器 cURL 快速导入</label>
-              <textarea id="curl-input" rows="2" placeholder="在登录页 F12 -> Network -> 右键登录请求 -> Copy as cURL 粘贴于此"></textarea>
+              <label id="lbl-curl-import">从浏览器 cURL 快速导入</label>
+              <textarea id="curl-input" rows="2" placeholder="在登录页按 F12 -> Network -> 右键登录请求 -> Copy as cURL 粘贴于此"></textarea>
               <div style="text-align: right; margin-top: 4px;">
-                <button type="button" class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px;" onclick="parseCurl()">自动提取填充</button>
+                <button type="button" class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px;" onclick="parseCurl()" id="btn-curl-parse">自动提取填充</button>
               </div>
             </div>
 
             <div class="row">
               <div class="form-group">
-                <label for="method">请求方法</label>
+                <label for="method" id="lbl-method">请求方法</label>
                 <select id="method">
-                  <option value="POST">POST</option>
-                  <option value="GET">GET</option>
+                  <option value="POST" id="opt-method-post">POST (提交账号密码·最常用)</option>
+                  <option value="GET" id="opt-method-get">GET (直接访问网址放行)</option>
                 </select>
               </div>
               <div class="form-group">
-                <label for="extra_params">补充表单参数 (key=value)</label>
+                <label for="extra_params" id="lbl-extra-params">补充表单参数 (自动提取后一般无需修改)</label>
                 <input type="text" id="extra_params" placeholder="例如: domain=telecom&wlanuserip={ip}">
               </div>
             </div>
@@ -392,19 +702,19 @@
       <!-- 偏好设置分层 (档位与免打扰) -->
       <div style="border-top: 1px solid var(--border); padding-top: 14px; display: flex; flex-direction: column; gap: 12px;">
         <div class="form-group">
-          <label>运行灵敏度</label>
+          <label id="lbl-sensitivity">运行灵敏度</label>
           <div class="profile-selector">
             <div class="profile-pill active" id="p-gaming" onclick="selectProfile('gaming')">
-              <div class="profile-pill-title">电竞极速</div>
-              <div class="profile-pill-desc">50ms 瞬时防抖 · 强静默</div>
+              <div class="profile-pill-title" id="p-gaming-title">50ms</div>
+              <div class="profile-pill-desc" id="p-gaming-desc">电竞极速</div>
             </div>
             <div class="profile-pill" id="p-balanced" onclick="selectProfile('balanced')">
-              <div class="profile-pill-title">日常推荐</div>
-              <div class="profile-pill-desc">150ms 黄金平衡</div>
+              <div class="profile-pill-title" id="p-balanced-title">150ms</div>
+              <div class="profile-pill-desc" id="p-balanced-desc">日常推荐</div>
             </div>
             <div class="profile-pill" id="p-power_save" onclick="selectProfile('power_save')">
-              <div class="profile-pill-title">省电长续航</div>
-              <div class="profile-pill-desc">500ms 宽限 · 适合笔记本</div>
+              <div class="profile-pill-title" id="p-power_save-title">500ms</div>
+              <div class="profile-pill-desc" id="p-power_save-desc">省电长续航</div>
             </div>
           </div>
         </div>
@@ -412,7 +722,7 @@
         <div class="checkbox-row">
           <label class="checkbox-label">
             <input type="checkbox" id="silent_mode" checked>
-            <span>静默模式：重连成功时不弹出 Windows 气泡通知</span>
+            <span id="txt-silent-mode">静默模式：重连成功时不弹出 Windows 气泡通知</span>
           </label>
         </div>
       </div>
@@ -425,7 +735,7 @@
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
           </svg>
-          测试连接
+          <span id="btn-test-txt">测试连接</span>
         </button>
         <button type="button" class="btn btn-secondary" id="btn-file" onclick="openConfigFile()" title="使用系统文本编辑器直接编辑本地 config.toml">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -435,7 +745,7 @@
             <line x1="16" y1="17" x2="8" y2="17"></line>
             <polyline points="10 9 9 9 8 9"></polyline>
           </svg>
-          打开本地配置文件
+          <span id="btn-file-txt">打开本地配置文件</span>
         </button>
       </div>
 
@@ -443,17 +753,525 @@
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <polyline points="20 6 9 17 4 12"></polyline>
         </svg>
-        保存设置
+        <span id="btn-save-txt">保存设置</span>
       </button>
     </div>
   </div>
 
   <script>
+    const I18N = {
+      zh: {
+        title: "NetTrigger 设置",
+        subtitle: "网络事件自动化感知与无感重连守护",
+        status: "守护中",
+        tab_browser: "自动打开网页登录 (有弹窗)",
+        tab_http: "后台静默登录 (无弹窗)",
+        portal_label: "校园网登录网址",
+        portal_ph: "例如: http://10.10.1.1/ 或 http://portal.univ.edu/",
+        browser_help: "检测到掉线或拦截时，将自动调用系统浏览器打开该网址（会有前台弹窗/切屏），由浏览器记住的密码完成登录。<br><b>无需在此填写任何账号和密码</b>。",
+        action_label: "登录网址",
+        action_ph: "例如: http://10.10.1.1/api/login 或认证放行网址",
+        username_label: "用户名 / 学号",
+        username_ph: "学号或宽带账号",
+        password_label: "认证密码",
+        password_ph: "认证密码",
+        advanced_summary: "🛠️ 高级参数与一键自动提取 (推荐小白使用)",
+        curl_label: "从浏览器 cURL 快速导入",
+        curl_ph: "在登录页 F12 -> Network -> 右键登录请求 -> Copy as cURL 粘贴于此",
+        curl_btn: "自动提取填充",
+        curl_tip_title: "不知道接口怎么填？30 秒全自动提取：",
+        curl_tip_desc: "① 浏览器打开校园网登录页，按键盘 <b>F12</b> ➔ 切换到 <b>Network (网络)</b> 标签；<br>② 输入账号密码点击登录 ➔ 在请求列表中右键登录请求 ➔ 选 <b>Copy as cURL</b>；<br>③ 粘贴在下方并点击【自动提取填充】，所有参数将全自动配置好！",
+        method_label: "请求方法",
+        opt_method_post: "POST (提交账号密码·最常用)",
+        opt_method_get: "GET (直接访问网址放行)",
+        extra_label: "补充表单参数 (自动提取后一般无需修改)",
+        extra_ph: "例如: domain=telecom&wlanuserip={ip}",
+        sensitivity_label: "运行灵敏度",
+        gaming_title: "50ms",
+        gaming_desc: "电竞极速",
+        balanced_title: "150ms",
+        balanced_desc: "日常推荐",
+        powersave_title: "500ms",
+        powersave_desc: "省电长续航",
+        silent_label: "静默模式：重连成功时不弹出 Windows 气泡通知",
+        btn_guide: "校园网设置指南",
+        btn_test: "测试连接",
+        btn_file: "打开本地配置文件",
+        btn_save: "保存设置",
+        saving: "正在保存...",
+        save_success: "设置已保存并立即生效",
+        save_error: "保存失败，请检查输入内容",
+        testing: "正在测试...",
+        test_ok: "连通有效",
+        test_fail: "未连通",
+        test_error: "测试失败",
+        file_ok: "已在系统文本编辑器中打开 config.toml",
+        file_fail: "无法打开配置文件",
+        network_error: "网络错误",
+        curl_success: "已成功从 cURL 提取参数并填入表单",
+        timeout_status: "已休眠 (超时)",
+        timeout_title: "当前设置服务已超时休眠",
+        timeout_desc: "为保证 0% CPU 与极轻内存（&lt;2MB），后台服务在空闲 5 分钟后已自动关闭。<br><b>当前网页已无法保存修改，请在电脑右下角任务栏托盘图标重新点击【⚙️ 设置】唤醒进入。</b>",
+        timeout_save_failed: "⚠️ 当前网页已经超时，修改未能保存！请在电脑右下角托盘图标重新点击【⚙️ 设置】进入并保存。",
+        timeout_reconnect_btn: "检测连通",
+        timeout_restored: "已成功重新连通设置服务",
+        timeout_still_offline: "服务尚未唤醒，请先在电脑右下角任务栏托盘图标点击【⚙️ 设置】",
+        guide_modal_title: "校园网设置与避坑指南",
+        guide_content: `<div class="guide-card" style="border-left: 3px solid var(--primary);">
+  <div class="guide-card-title">⚡ 极速模式速选（小白 3 秒做决定）</div>
+  <div style="display: flex; flex-direction: column; gap: 8px;">
+    <div><b>1. 自动打开网页登录 (有弹窗)</b>：零技术门槛，只需填登录网址。已在 Chrome/Edge 记住密码的用户直接用。掉线时自动弹出浏览器页面登录（适合日常浏览网页）。</div>
+    <div><b>2. 后台静默登录 (无弹窗) ⭐ 强推</b>：打游戏、看电影或远程会议首选！掉线后后台 0.05 秒静默认证，<b>0 弹窗、不夺前台焦点、游戏不切屏不掉帧</b>！</div>
+  </div>
+</div>
+
+<div class="guide-card">
+  <div class="guide-card-title">🚀 30 秒全自动配置【后台静默登录】（全网通用）</div>
+  <div style="margin-bottom: 6px; color: var(--text-secondary);">不需要手动分析深奥协议！利用浏览器开发者工具 30 秒全自动提取：</div>
+  <div class="guide-step-list">
+    <div class="guide-step-item">
+      <div class="guide-step-badge">1</div>
+      <div class="guide-step-text">打开校园网登录页面，按键盘 <strong>F12</strong>（笔记本若有 Fn 请按 <strong>Fn + F12</strong>，或右键“检查”）。</div>
+    </div>
+    <div class="guide-step-item">
+      <div class="guide-step-badge">2</div>
+      <div class="guide-step-text">在弹出的工具窗口顶部切换到 <strong>Network (网络)</strong> 标签。</div>
+    </div>
+    <div class="guide-step-item">
+      <div class="guide-step-badge">3</div>
+      <div class="guide-step-text">在网页正常输入学号/宽带账号密码，点击<strong>“登录”</strong>。</div>
+    </div>
+    <div class="guide-step-item">
+      <div class="guide-step-badge">4</div>
+      <div class="guide-step-text">在 Network 列表中找到提交登录的请求（通常第一条或带有 login / do / srun），<strong>鼠标右键 ➔ Copy (复制) ➔ Copy as cURL</strong>。</div>
+    </div>
+    <div class="guide-step-item">
+      <div class="guide-step-badge">5</div>
+      <div class="guide-step-text">回到本设置界面的【高级选项】，粘贴进文本框点击<strong>【自动提取填充】</strong>并保存，全部参数自动配置完成！</div>
+    </div>
+  </div>
+</div>
+
+<div class="guide-card">
+  <div class="guide-card-title">🏫 国内四大主流校园网特征速查</div>
+  <div class="school-grid">
+    <div class="school-box">
+      <div class="school-box-title">🔷 锐捷网络 (Ruijie / ePortal)</div>
+      <div>
+        • 特征：网址含 <span class="code-chip">eportal</span>、<span class="code-chip">InterFace.do</span> 或 <span class="code-chip">success.jsp</span>。<br>
+        • 技巧：支持成功页放行的学校，可直接把 <span class="code-chip">success.jsp?...</span> 填入【登录网址】并选 GET；账号登录按 F12 复制 cURL 导入。<br>
+        • 提示：放行后若跳转到 123.123.123.123 白屏是锐捷正常现象，代表已放行。
+      </div>
+    </div>
+    <div class="school-box">
+      <div class="school-box-title">🔶 深澜软件 (srun 3000 / 4000)</div>
+      <div>
+        • 特征：网址常包含 <span class="code-chip">/cgi-bin/srun_portal</span>。<br>
+        • 技巧：深澜多带有动态 IP 与 ac_id，直接使用 F12 复制 cURL 导入，NetTrigger 会自动把 IP 替换为 <span class="code-chip">{ip}</span> 宏，换网也能自动适应！
+      </div>
+    </div>
+    <div class="school-box">
+      <div class="school-box-title">🟢 城市热点 (Dr.COM / 哆咪)</div>
+      <div>
+        • 特征：常见于 <span class="code-chip">:801/eportal/</span> 或 <span class="code-chip">a70.htm</span>。<br>
+        • 技巧：支持网页 GET/POST 模拟，按 F12 复制 cURL 一键导入即搞定。
+      </div>
+    </div>
+    <div class="school-box">
+      <div class="school-box-title">🟣 华为 / H3C 等网关</div>
+      <div>
+        • 特征：标准 HTTP POST 表单提交。<br>
+        • 技巧：直接使用 F12 复制 cURL 一键导入，或手动填入【登录网址】与用户名密码。
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="guide-card">
+  <div class="guide-card-title">❓ 常见避坑问答 (FAQ)</div>
+  <div style="display: flex; flex-direction: column; gap: 8px;">
+    <div><b>Q: 为什么我打游戏还是偶尔被弹窗？</b><br>A: 请检查当前模式是否误选了“自动打开网页登录”，切换至“后台静默登录 (无弹窗)”即可绝对静默。</div>
+    <div><b>Q: 电脑每天休眠或重启后 IP 会变，需要重新配吗？</b><br>A: 不需要！通过 F12 导入后，NetTrigger 每次连网都会动态获取本机当前真实网卡 IP 发送认证，全程全自动。</div>
+    <div><b>Q: 如果实在搞不懂怎么配怎么办？</b><br>A: 别担心！请查看下方专门为您准备的【求助 AI 专用 Prompt】，点击复制后发送给您常用的 AI 即可获得一对一针对性填写答案。</div>
+  </div>
+</div>
+
+<div class="guide-card" style="border: 1px solid rgba(139, 92, 246, 0.45); background: rgba(139, 92, 246, 0.06);">
+  <div class="guide-card-title" style="color: #c4b5fd;">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 2a10 10 0 0 1 10 10c0 5.523-4.477 10-10 10S2 17.523 2 12 6.477 2 12 2z"></path>
+      <path d="M12 8v4"></path>
+      <path d="M12 16h.01"></path>
+    </svg>
+    🤖 依然无法搞定？复制 Prompt 求助常用 AI 助手
+  </div>
+  <div style="font-size: 12.5px; line-height: 1.6; color: var(--text-secondary); margin-bottom: 10px;">
+    您可以复制下方专为本软件调优的<b>结构化诊断提示词</b>，发送给您习惯使用的 AI 助手（如 <b>DeepSeek、Kimi、豆包、通义千问、ChatGPT、Claude、Gemini</b> 等），并附上您的校园网网址或 F12 抓包信息，AI 会为您格式化直接输出应填写的每一项！
+  </div>
+  <div style="position: relative;">
+    <pre style="background: rgba(0, 0, 0, 0.4); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; font-size: 11.5px; line-height: 1.55; color: #cbd5e1; max-height: 140px; overflow-y: auto; white-space: pre-wrap; font-family: Consolas, Monaco, monospace; margin: 0;" id="ai-prompt-text-zh">你是一名精通高校校园网认证机制（如深澜 srun、锐捷 Ruijie/ePortal、城市热点 Dr.COM、华为等体系）的技术专家。
+我现在正在使用专为 Windows 打造的原生自动化网络守护工具 NetTrigger。请根据我后面提供的校园网登录网址、跳转链接或浏览器 F12 cURL 抓包数据，帮我分析并直接给出在 NetTrigger 中的具体填写方案。
+
+【NetTrigger 设置选项与规则说明】
+1. 运行模式：
+   - "自动打开网页登录 (有弹窗)"：适合不想配参数、仅填登录网址并由浏览器自动登录的小白（掉线会弹网页切屏）。
+   - "后台静默登录 (无弹窗)"（强烈推荐）：后台静默发包，打游戏不弹窗不切屏。
+2. 后台静默登录参数：
+   - 登录网址 (action_url)：认证提交的真实接口地址或免密放行网址。
+   - 用户名 (username) 与 认证密码 (password)：若网址已自带凭证（如包含 userIndex 或 Token 的 success.jsp 链接），则全部留空；若需提交账号密码，则分别填写。
+   - 请求方法 (method)：POST（常规密码认证）或 GET（放行网址/跳转链接认证）。
+   - 补充表单参数 (extra_params)：如 domain=telecom 等扩展键值对，若无则留空。支持动态宏：{username}, {password}, {ip}, {mac}, {time}。
+
+【你的任务】
+请分析我发给你的校园网信息：
+1. 辨别我的校园网体系类型（深澜 / 锐捷 / Dr.COM / 其它）；
+2. 以清晰简洁的表格格式，直接告诉我应该怎么填写：
+   | 设置项 | 推荐填写值 | 说明 |
+   | :--- | :--- | :--- |
+   | 推荐模式 | [后台静默登录 (无弹窗) / 自动打开网页登录 (有弹窗)] | 模式选择 |
+   | 登录网址 | [具体 URL] | 提交地址或放行网址 |
+   | 用户名 | [留空 / 你的学号] | 是否需要填写学号 |
+   | 认证密码 | [留空 / 你的密码] | 是否需要填写密码 |
+   | 请求方法 | [POST / GET] | 高级选项中的方法 |
+   | 补充表单参数 | [留空 / 提取后的 key=value] | 高级选项中的参数 |
+3. 给出 1~2 句简短的避坑提示。
+
+我的校园网信息如下：
+[请在此处粘贴你的校园网登录网址、放行链接或浏览器 F12 cURL 抓包数据]</pre>
+  </div>
+  <div style="display: flex; justify-content: flex-end; margin-top: 10px;">
+    <button type="button" class="btn btn-secondary btn-sm" onclick="copyAiPrompt()" id="btn-copy-prompt-zh" style="display: inline-flex; align-items: center; gap: 6px; font-weight: 600; color: #a78bfa; border-color: rgba(167, 139, 250, 0.45); cursor: pointer;">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+      </svg>
+      <span id="txt-copy-prompt-zh">📋 一键复制求助 AI 专用 Prompt</span>
+    </button>
+  </div>
+</div>`
+      },
+      en: {
+        title: "NetTrigger Settings",
+        subtitle: "Event-driven network status keeper & zero-distraction reconnect",
+        status: "Guarding",
+        tab_browser: "Auto-Open Browser Login (Popup)",
+        tab_http: "Silent Background Login (No Popup)",
+        portal_label: "Campus Portal Login URL",
+        portal_ph: "e.g., http://10.10.1.1/ or http://portal.univ.edu/",
+        browser_help: "When disconnected or intercepted, this URL will be opened in your default browser (causes popup window/focus shift), relying on browser-saved passwords.<br><b>No credentials needed here</b>.",
+        action_label: "Login URL",
+        action_ph: "e.g., http://10.10.1.1/api/login or portal release URL",
+        username_label: "Username / Account",
+        username_ph: "Username, account, or student ID",
+        password_label: "Password",
+        password_ph: "Password",
+        advanced_summary: "🛠️ Advanced Options & Auto-Extract (Recommended)",
+        curl_label: "Quick Import from Browser cURL",
+        curl_ph: "Press F12 on login page -> Network -> Right-click login request -> Copy as cURL -> Paste here",
+        curl_btn: "Auto-Extract",
+        curl_tip_title: "Don't know how to fill? 30-sec Auto-Extract:",
+        curl_tip_desc: "① Open login page in browser, press <b>F12</b> ➔ switch to <b>Network</b> tab;<br>② Enter credentials and click login ➔ right click the login request ➔ <b>Copy as cURL</b>;<br>③ Paste below and click [Auto-Extract] to configure everything automatically!",
+        method_label: "HTTP Method",
+        opt_method_post: "POST (Submit Credentials - Standard)",
+        opt_method_get: "GET (Direct URL Access)",
+        extra_label: "Extra Form Parameters (Usually auto-filled)",
+        extra_ph: "e.g., domain=default&wlanuserip={ip}",
+        sensitivity_label: "Operating Sensitivity",
+        gaming_title: "50ms",
+        gaming_desc: "Gaming Speed",
+        balanced_title: "150ms",
+        balanced_desc: "Balanced",
+        powersave_title: "500ms",
+        powersave_desc: "Power Save",
+        silent_label: "Silent Mode: Suppress Windows notifications on reconnect",
+        btn_guide: "Setup Guide",
+        btn_test: "Test Connection",
+        btn_file: "Open Config File",
+        btn_save: "Save Settings",
+        saving: "Saving...",
+        save_success: "Settings saved and applied successfully",
+        save_error: "Failed to save, please check inputs",
+        testing: "Testing...",
+        test_ok: "Connection successful",
+        test_fail: "Connection failed",
+        test_error: "Test failed",
+        file_ok: "Opened config.toml in default editor",
+        file_fail: "Failed to open config file",
+        network_error: "Network error",
+        curl_success: "Parameters extracted from cURL successfully",
+        timeout_status: "Dormant (Timed out)",
+        timeout_title: "Settings Session Timed Out",
+        timeout_desc: "To maintain 0% CPU and minimal RAM (&lt;2MB), the temporary service automatically closed after 5 minutes of inactivity.<br><b>Please re-click [⚙️ Settings] in the system tray to re-open and save.</b>",
+        timeout_save_failed: "⚠️ Settings session timed out, changes were not saved! Please re-click [⚙️ Settings] in the system tray to re-open and save.",
+        timeout_reconnect_btn: "Check Connection",
+        timeout_restored: "Successfully reconnected to settings service",
+        timeout_still_offline: "Service dormant. Please click [⚙️ Settings] in the system tray first",
+        guide_modal_title: "Campus Network Setup Guide",
+        guide_content: `<div class="guide-card" style="border-left: 3px solid var(--primary);">
+  <div class="guide-card-title">⚡ Quick Mode Selection (3 Seconds)</div>
+  <div style="display: flex; flex-direction: column; gap: 8px;">
+    <div><b>1. Auto-Open Browser Login (Popup Window)</b>: Zero technical setup. Just provide the portal URL. Best if your password is already saved in Chrome/Edge. The browser window will pop up when disconnected.</div>
+    <div><b>2. Silent Background Login (No Popup) ⭐ Recommended</b>: Ideal for gaming, streaming, or video calls! Reconnects in 0.05s completely in the background without popups or losing window focus.</div>
+  </div>
+</div>
+
+<div class="guide-card">
+  <div class="guide-card-title">🚀 30-Second Automatic Setup for Silent Login (Universal)</div>
+  <div style="margin-bottom: 6px; color: var(--text-secondary);">No need to study complex network requests! Use browser tools to auto-extract in 30 seconds:</div>
+  <div class="guide-step-list">
+    <div class="guide-step-item">
+      <div class="guide-step-badge">1</div>
+      <div class="guide-step-text">Open campus portal login page, press <strong>F12</strong> (or <strong>Fn + F12</strong>, or right-click -> Inspect).</div>
+    </div>
+    <div class="guide-step-item">
+      <div class="guide-step-badge">2</div>
+      <div class="guide-step-text">Switch to the <strong>Network</strong> tab at the top of Developer Tools.</div>
+    </div>
+    <div class="guide-step-item">
+      <div class="guide-step-badge">3</div>
+      <div class="guide-step-text">Enter your credentials and click <strong>Login</strong> on the webpage.</div>
+    </div>
+    <div class="guide-step-item">
+      <div class="guide-step-badge">4</div>
+      <div class="guide-step-text">Find the login request (often containing login / do / srun), <strong>Right-Click ➔ Copy ➔ Copy as cURL</strong>.</div>
+    </div>
+    <div class="guide-step-item">
+      <div class="guide-step-badge">5</div>
+      <div class="guide-step-text">Go back to NetTrigger's Advanced Options, paste into the box, click <strong>Auto-Extract</strong>, and Save!</div>
+    </div>
+  </div>
+</div>
+
+<div class="guide-card">
+  <div class="guide-card-title">🏫 Chinese Campus Portal Systems Overview</div>
+  <div class="school-grid">
+    <div class="school-box">
+      <div class="school-box-title">🔷 Ruijie / ePortal</div>
+      <div>
+        • URL usually contains <span class="code-chip">eportal</span>, <span class="code-chip">InterFace.do</span>, or <span class="code-chip">success.jsp</span>.<br>
+        • If your school supports session keepalive via success.jsp, you can put that URL directly in Login URL with GET method; otherwise import cURL via F12.<br>
+        • Note: Redirecting to 123.123.123.123 on success is Ruijie's normal behavior.
+      </div>
+    </div>
+    <div class="school-box">
+      <div class="school-box-title">🔶 Srun (深澜 3000 / 4000)</div>
+      <div>
+        • URL usually contains <span class="code-chip">/cgi-bin/srun_portal</span>.<br>
+        • Highly recommended to import via F12 cURL. NetTrigger automatically substitutes dynamic IP with the <span class="code-chip">{ip}</span> macro.
+      </div>
+    </div>
+    <div class="school-box">
+      <div class="school-box-title">🟢 Dr.COM (城市热点 / 哆咪)</div>
+      <div>
+        • Often at <span class="code-chip">:801/eportal/</span> or <span class="code-chip">a70.htm</span>.<br>
+        • Supports GET/POST simulation; import cURL via F12 for 1-click configuration.
+      </div>
+    </div>
+    <div class="school-box">
+      <div class="school-box-title">🟣 Huawei / H3C Portals</div>
+      <div>
+        • Standard HTTP POST form submission.<br>
+        • Import via F12 cURL or fill Login URL with credentials.
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="guide-card">
+  <div class="guide-card-title">❓ Frequently Asked Questions (FAQ)</div>
+  <div style="display: flex; flex-direction: column; gap: 8px;">
+    <div><b>Q: Why do I still get window popups during games?</b><br>A: Make sure you chose "Silent Background Login (No Popup)" instead of the browser popup mode.</div>
+    <div><b>Q: Does dynamic IP change affect silent login?</b><br>A: No! NetTrigger queries your current active network adapter IP before every reconnection request and injects it automatically.</div>
+    <div><b>Q: Still don't know how to configure?</b><br>A: No worries! Check out the AI prompt below. Click copy and send it to your favorite AI to get an instant tailored configuration table.</div>
+  </div>
+</div>
+
+<div class="guide-card" style="border: 1px solid rgba(139, 92, 246, 0.45); background: rgba(139, 92, 246, 0.06);">
+  <div class="guide-card-title" style="color: #c4b5fd;">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 2a10 10 0 0 1 10 10c0 5.523-4.477 10-10 10S2 17.523 2 12 6.477 2 12 2z"></path>
+      <path d="M12 8v4"></path>
+      <path d="M12 16h.01"></path>
+    </svg>
+    🤖 Still Stuck? Copy Prompt & Ask Your Favorite AI Assistant
+  </div>
+  <div style="font-size: 12.5px; line-height: 1.6; color: var(--text-secondary); margin-bottom: 10px;">
+    You can copy the structured diagnostic prompt below and send it to your preferred AI assistant (e.g., <b>DeepSeek, Kimi, Doubao, Qwen, ChatGPT, Claude, Gemini</b>, etc.) along with your portal login URL or F12 cURL. The AI will output ready-to-use NetTrigger settings directly!
+  </div>
+  <div style="position: relative;">
+    <pre style="background: rgba(0, 0, 0, 0.4); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; font-size: 11.5px; line-height: 1.55; color: #cbd5e1; max-height: 140px; overflow-y: auto; white-space: pre-wrap; font-family: Consolas, Monaco, monospace; margin: 0;" id="ai-prompt-text-en">You are an expert in campus network captive portal authentication mechanisms (e.g. Srun, Ruijie/ePortal, Dr.COM, Huawei, etc.).
+I am using NetTrigger, an ultra-lightweight native Windows network keeper. Based on the campus portal URL, redirect link, or browser F12 cURL data I provide below, please analyze and provide the exact values I should configure in NetTrigger.
+
+【NetTrigger Setting Options & Rules】
+1. Mode:
+   - "Auto-Open Browser Login (Popup)": Good for users who don't want to configure HTTP parameters and only need the browser to open the URL when disconnected (will steal window focus / popup).
+   - "Silent Background Login (No Popup)" (Recommended): Headless HTTP request in the background, zero popup, never steals window focus during gaming or meetings.
+2. Silent Login Parameters:
+   - Login URL (action_url): The actual HTTP API endpoint or session release URL.
+   - Username & Password: If the URL already contains authentication credentials (e.g. a token or userIndex in a success.jsp link), leave them empty; otherwise fill with account credentials.
+   - HTTP Method: POST (standard form login) or GET (direct session release URL).
+   - Extra Form Parameters: Key-value pairs (e.g. domain=default). Leave empty if not required. Supports macros: {username}, {password}, {ip}, {mac}, {time}.
+
+【Your Task】
+Analyze the campus network information I provide below:
+1. Identify the campus network portal system (Srun / Ruijie / Dr.COM / etc.);
+2. Provide a clean and clear markdown table showing the exact settings:
+   | Setting | Recommended Value | Note |
+   | :--- | :--- | :--- |
+   | Mode | [Silent Background Login (No Popup) / Auto-Open Browser Login] | Selected mode |
+   | Login URL | [Exact URL] | Endpoint URL |
+   | Username | [Leave Empty / Your Student ID] | Account |
+   | Password | [Leave Empty / Your Password] | Password |
+   | HTTP Method | [POST / GET] | Request method in Advanced Options |
+   | Extra Form Parameters | [Leave Empty / Parsed key=value] | In Advanced Options |
+3. Provide 1~2 concise tips or common pitfalls to avoid.
+
+My campus network information:
+[Paste your login URL, redirect URL, or browser F12 cURL data here]</pre>
+  </div>
+  <div style="display: flex; justify-content: flex-end; margin-top: 10px;">
+    <button type="button" class="btn btn-secondary btn-sm" onclick="copyAiPrompt()" id="btn-copy-prompt-en" style="display: inline-flex; align-items: center; gap: 6px; font-weight: 600; color: #a78bfa; border-color: rgba(167, 139, 250, 0.45); cursor: pointer;">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+      </svg>
+      <span id="txt-copy-prompt-en">📋 1-Click Copy AI Diagnostic Prompt</span>
+    </button>
+  </div>
+</div>`
+      }
+    };
+
     let activeMode = 'browser';
     let activeProfile = 'gaming';
     let fullConfig = {};
+    let currentLang = 'zh';
+    let sessionTimeoutTimer = null;
+    let isSessionExpired = false;
+    let noticeTimeout = null;
+    const SESSION_TIMEOUT_MS = 300 * 1000; // 5分钟无请求自动休眠判定
+
+    function resetSessionTimer() {
+      if (sessionTimeoutTimer) clearTimeout(sessionTimeoutTimer);
+      if (isSessionExpired) return;
+      sessionTimeoutTimer = setTimeout(() => {
+        handleSessionTimeout(false);
+      }, SESSION_TIMEOUT_MS);
+    }
+
+    function handleSessionTimeout(isErrorTriggered) {
+      isSessionExpired = true;
+      const t = I18N[currentLang];
+      const banner = document.getElementById('timeout-banner');
+      if (banner) banner.style.display = 'flex';
+
+      const pill = document.querySelector('.status-pill');
+      if (pill) {
+        pill.classList.add('dormant');
+        const elStatus = document.getElementById('header-status');
+        if (elStatus) elStatus.innerText = t.timeout_status;
+      }
+
+      if (isErrorTriggered) {
+        showNotice(t.timeout_save_failed, 'error', 12000);
+      }
+    }
+
+    async function checkOrReconnect() {
+      const t = I18N[currentLang];
+      const btn = document.getElementById('btn-reconnect-txt');
+      const oldTxt = btn ? btn.innerText : '';
+      if (btn) btn.innerText = t.testing;
+      try {
+        const res = await fetch('/api/config');
+        if (res.ok) {
+          isSessionExpired = false;
+          const banner = document.getElementById('timeout-banner');
+          if (banner) banner.style.display = 'none';
+          const pill = document.querySelector('.status-pill');
+          if (pill) {
+            pill.classList.remove('dormant');
+            const elStatus = document.getElementById('header-status');
+            if (elStatus) elStatus.innerText = t.status;
+          }
+          showNotice(t.timeout_restored, 'success', 3500);
+          resetSessionTimer();
+          return;
+        }
+      } catch (e) {
+        // still offline
+      } finally {
+        if (btn) btn.innerText = oldTxt;
+      }
+      showNotice(t.timeout_still_offline, 'error', 6500);
+    }
+
+    function applyLanguage(lang) {
+      currentLang = lang === 'en' ? 'en' : 'zh';
+      const t = I18N[currentLang];
+      document.title = t.title;
+      const elTitle = document.getElementById('txt-title'); if (elTitle) elTitle.innerText = t.title;
+      const elSub = document.getElementById('txt-subtitle'); if (elSub) elSub.innerText = t.subtitle;
+      const elStatus = document.getElementById('header-status');
+      if (elStatus) {
+        elStatus.innerText = isSessionExpired ? t.timeout_status : t.status;
+      }
+      const elTabB = document.getElementById('tab-browser-txt'); if (elTabB) elTabB.innerText = t.tab_browser;
+      const elTabH = document.getElementById('tab-http-txt'); if (elTabH) elTabH.innerText = t.tab_http;
+      const elPortalLbl = document.getElementById('lbl-portal-url'); if (elPortalLbl) elPortalLbl.innerText = t.portal_label;
+      const elPortal = document.getElementById('portal_url'); if (elPortal) elPortal.placeholder = t.portal_ph;
+      const elBrowserHelp = document.getElementById('txt-browser-help'); if (elBrowserHelp) elBrowserHelp.innerHTML = t.browser_help;
+      const elActionLbl = document.getElementById('lbl-action-url'); if (elActionLbl) elActionLbl.innerText = t.action_label;
+      const elActionIn = document.getElementById('action_url'); if (elActionIn && t.action_ph) elActionIn.placeholder = t.action_ph;
+      const elUserLbl = document.getElementById('lbl-username'); if (elUserLbl) elUserLbl.innerText = t.username_label;
+      const elUser = document.getElementById('username'); if (elUser) elUser.placeholder = t.username_ph;
+      const elPassLbl = document.getElementById('lbl-password'); if (elPassLbl) elPassLbl.innerText = t.password_label;
+      const elPass = document.getElementById('password'); if (elPass) elPass.placeholder = t.password_ph;
+      const elAdv = document.getElementById('txt-advanced-summary'); if (elAdv) elAdv.innerText = t.advanced_summary;
+      const elCurlLbl = document.getElementById('lbl-curl-import'); if (elCurlLbl) elCurlLbl.innerText = t.curl_label;
+      const elCurlIn = document.getElementById('curl-input'); if (elCurlIn) elCurlIn.placeholder = t.curl_ph;
+      const elCurlBtn = document.getElementById('btn-curl-parse'); if (elCurlBtn) elCurlBtn.innerText = t.curl_btn;
+      const elMethodLbl = document.getElementById('lbl-method'); if (elMethodLbl) elMethodLbl.innerText = t.method_label;
+      const elExtraLbl = document.getElementById('lbl-extra-params'); if (elExtraLbl) elExtraLbl.innerText = t.extra_label;
+      const elExtraIn = document.getElementById('extra_params'); if (elExtraIn) elExtraIn.placeholder = t.extra_ph;
+      const elSensLbl = document.getElementById('lbl-sensitivity'); if (elSensLbl) elSensLbl.innerText = t.sensitivity_label;
+      const elGT = document.getElementById('p-gaming-title'); if (elGT) elGT.innerText = t.gaming_title;
+      const elGD = document.getElementById('p-gaming-desc'); if (elGD) elGD.innerText = t.gaming_desc;
+      const elBT = document.getElementById('p-balanced-title'); if (elBT) elBT.innerText = t.balanced_title;
+      const elBD = document.getElementById('p-balanced-desc'); if (elBD) elBD.innerText = t.balanced_desc;
+      const elPT = document.getElementById('p-power_save-title'); if (elPT) elPT.innerText = t.powersave_title;
+      const elPD = document.getElementById('p-power_save-desc'); if (elPD) elPD.innerText = t.powersave_desc;
+      const elSilent = document.getElementById('txt-silent-mode'); if (elSilent) elSilent.innerText = t.silent_label;
+      const elTestTxt = document.getElementById('btn-test-txt'); if (elTestTxt) elTestTxt.innerText = t.btn_test;
+      const elFileTxt = document.getElementById('btn-file-txt'); if (elFileTxt) elFileTxt.innerText = t.btn_file;
+      const elSaveTxt = document.getElementById('btn-save-txt'); if (elSaveTxt) elSaveTxt.innerText = t.btn_save;
+
+      const elBtnGuide = document.getElementById('btn-guide-txt'); if (elBtnGuide) elBtnGuide.innerText = t.btn_guide;
+      const elGuideTitle = document.getElementById('guide-modal-title'); if (elGuideTitle) elGuideTitle.innerText = t.guide_modal_title;
+      const elGuideBody = document.getElementById('guide-modal-body'); if (elGuideBody) elGuideBody.innerHTML = t.guide_content;
+      const elCurlTipT = document.getElementById('txt-curl-tip-title'); if (elCurlTipT) elCurlTipT.innerText = t.curl_tip_title;
+      const elCurlTipD = document.getElementById('txt-curl-tip-desc'); if (elCurlTipD) elCurlTipD.innerHTML = t.curl_tip_desc;
+      const elOptPost = document.getElementById('opt-method-post'); if (elOptPost) elOptPost.innerText = t.opt_method_post;
+      const elOptGet = document.getElementById('opt-method-get'); if (elOptGet) elOptGet.innerText = t.opt_method_get;
+
+      const elTimeoutTitle = document.getElementById('txt-timeout-title'); if (elTimeoutTitle) elTimeoutTitle.innerText = t.timeout_title;
+      const elTimeoutDesc = document.getElementById('txt-timeout-desc'); if (elTimeoutDesc) elTimeoutDesc.innerHTML = t.timeout_desc;
+      const elBtnReconnect = document.getElementById('btn-reconnect-txt'); if (elBtnReconnect) elBtnReconnect.innerText = t.timeout_reconnect_btn;
+    }
+
+    function changeLanguage(val) {
+      if (val === 'auto') {
+        const eff = fullConfig.effective_language || (navigator.language && navigator.language.startsWith('zh') ? 'zh' : 'en');
+        applyLanguage(eff);
+      } else {
+        applyLanguage(val);
+      }
+    }
 
     window.addEventListener('DOMContentLoaded', async () => {
+      resetSessionTimer();
+      const defaultLang = navigator.language && navigator.language.startsWith('zh') ? 'zh' : 'en';
+      applyLanguage(defaultLang);
       try {
         const res = await fetch('/api/config');
         if (res.ok) {
@@ -462,10 +1280,17 @@
         }
       } catch (e) {
         console.warn('获取配置失败', e);
+        handleSessionTimeout(false);
       }
     });
 
     function initUI(cfg) {
+      const langConfig = (cfg.general && cfg.general.language) || 'auto';
+      const elLangSel = document.getElementById('lang-selector');
+      if (elLangSel) elLangSel.value = langConfig;
+      const effective = cfg.effective_language || (langConfig === 'auto' ? (navigator.language && navigator.language.startsWith('zh') ? 'zh' : 'en') : langConfig);
+      applyLanguage(effective);
+
       const mode = (cfg.auth && cfg.auth.mode) || 'browser';
       switchMode(mode);
 
@@ -555,7 +1380,8 @@
         }
       }
 
-      showNotice('已成功从 cURL 提取参数并填入表单', 'success');
+      const t = I18N[currentLang];
+      showNotice(t.curl_success, 'success');
     }
 
     function collectPayload() {
@@ -563,6 +1389,8 @@
       payload.general = payload.general || {};
       payload.general.profile = activeProfile;
       payload.general.silent_mode = document.getElementById('silent_mode').checked;
+      const elLang = document.getElementById('lang-selector');
+      if (elLang) payload.general.language = elLang.value;
 
       payload.auth = payload.auth || {};
       payload.auth.mode = activeMode;
@@ -595,9 +1423,15 @@
     }
 
     async function saveSettings() {
+      if (isSessionExpired) {
+        handleSessionTimeout(true);
+        return;
+      }
       const payload = collectPayload();
+      const t = I18N[currentLang];
       const btn = document.getElementById('btn-save');
-      btn.innerText = '正在保存...';
+      const span = document.getElementById('btn-save-txt');
+      if (span) span.innerText = t.saving;
       try {
         const res = await fetch('/api/save', {
           method: 'POST',
@@ -605,21 +1439,27 @@
           body: JSON.stringify(payload)
         });
         if (res.ok) {
-          showNotice('设置已保存并立即生效', 'success');
+          showNotice(t.save_success, 'success');
+          resetSessionTimer();
         } else {
-          showNotice('保存失败，请检查输入内容', 'error');
+          showNotice(t.save_error, 'error');
         }
       } catch (e) {
-        showNotice('网络错误: ' + e.message, 'error');
+        handleSessionTimeout(true);
       } finally {
-        btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg> 保存设置`;
+        if (span) span.innerText = t.btn_save;
       }
     }
 
     async function testConnection() {
+      if (isSessionExpired) {
+        handleSessionTimeout(true);
+        return;
+      }
       const payload = collectPayload();
-      const btn = document.getElementById('btn-test');
-      btn.innerText = '正在测试...';
+      const t = I18N[currentLang];
+      const span = document.getElementById('btn-test-txt');
+      if (span) span.innerText = t.testing;
       try {
         const res = await fetch('/api/test', {
           method: 'POST',
@@ -628,37 +1468,142 @@
         });
         const r = await res.json();
         if (r.success) {
-          showNotice(`连通有效 (HTTP ${r.status_code})：${r.message}`, 'success');
+          showNotice(`${t.test_ok} (HTTP ${r.status_code})：${r.message}`, 'success');
+          resetSessionTimer();
         } else {
-          showNotice(`未连通 (HTTP ${r.status_code})：${r.message}`, 'error');
+          showNotice(`${t.test_fail} (HTTP ${r.status_code})：${r.message}`, 'error');
         }
       } catch (e) {
-        showNotice('测试失败: ' + e.message, 'error');
+        handleSessionTimeout(true);
       } finally {
-        btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg> 测试连接`;
+        if (span) span.innerText = t.btn_test;
       }
     }
 
     async function openConfigFile() {
+      if (isSessionExpired) {
+        handleSessionTimeout(true);
+        return;
+      }
+      const t = I18N[currentLang];
       try {
         const res = await fetch('/api/open_config_file', { method: 'POST' });
         if (res.ok) {
-          showNotice('已在系统文本编辑器中打开 config.toml', 'success');
+          showNotice(t.file_ok, 'success');
+          resetSessionTimer();
         } else {
-          showNotice('无法打开配置文件', 'error');
+          showNotice(t.file_fail, 'error');
         }
       } catch (e) {
-        showNotice('请求失败: ' + e.message, 'error');
+        handleSessionTimeout(true);
       }
     }
 
-    function showNotice(text, type) {
+    function showNotice(text, type, duration = 5000) {
       const box = document.getElementById('msg-box');
       box.className = 'notice ' + type;
-      box.innerText = text;
+      box.innerHTML = text;
       box.style.display = 'block';
-      setTimeout(() => { box.style.display = 'none'; }, 5000);
+      if (noticeTimeout) clearTimeout(noticeTimeout);
+      noticeTimeout = setTimeout(() => { box.style.display = 'none'; }, duration);
     }
+
+    function copyAiPrompt() {
+      const isEn = currentLang === 'en';
+      const preId = isEn ? 'ai-prompt-text-en' : 'ai-prompt-text-zh';
+      const txtId = isEn ? 'txt-copy-prompt-en' : 'txt-copy-prompt-zh';
+      const pre = document.getElementById(preId);
+      const span = document.getElementById(txtId);
+      if (!pre) return;
+      const text = pre.innerText;
+
+      const onSuccess = () => {
+        if (span) {
+          const orig = span.innerText;
+          span.innerText = isEn ? '✅ Copied to Clipboard!' : '✅ 已复制到剪贴板！';
+          setTimeout(() => { span.innerText = orig; }, 3000);
+        }
+        showNotice(isEn ? 'AI Diagnostic Prompt copied to clipboard!' : '已成功复制求助 AI 专用 Prompt 到剪贴板！', 'success', 4000);
+      };
+
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(onSuccess).catch(() => {
+          fallbackCopy(text, onSuccess);
+        });
+      } else {
+        fallbackCopy(text, onSuccess);
+      }
+    }
+
+    function fallbackCopy(text, cb) {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.left = '-9999px';
+      ta.style.top = '0';
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      try {
+        document.execCommand('copy');
+        if (cb) cb();
+      } catch (err) {
+        showNotice(currentLang === 'en' ? 'Copy failed, please copy manually' : '复制失败，请手动划选复制', 'error');
+      }
+      document.body.removeChild(ta);
+    }
+
+    function openGuideModal() {
+      const modal = document.getElementById('guide-modal');
+      if (modal) {
+        modal.style.display = 'flex';
+        const t = I18N[currentLang];
+        const elBody = document.getElementById('guide-modal-body');
+        if (elBody) {
+          elBody.innerHTML = t.guide_content;
+        }
+      }
+    }
+
+    function closeGuideModal(e) {
+      if (e && e.target && e.target.closest && e.target.closest('.modal-card') && !e.target.closest('.modal-close-btn')) {
+        return;
+      }
+      const modal = document.getElementById('guide-modal');
+      if (modal) {
+        modal.style.display = 'none';
+      }
+    }
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        closeGuideModal();
+      }
+    });
   </script>
+
+  <!-- 校园网设置指南模态框 -->
+  <div id="guide-modal" class="modal-backdrop" style="display: none;" onclick="closeGuideModal(event)">
+    <div class="modal-card" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <div class="modal-title-wrap">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--primary);">
+            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+          </svg>
+          <div class="modal-title" id="guide-modal-title">校园网设置与避坑指南</div>
+        </div>
+        <button type="button" class="modal-close-btn" onclick="closeGuideModal()" title="关闭">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body" id="guide-modal-body">
+        <!-- 动态由 applyLanguage 渲染 -->
+      </div>
+    </div>
+  </div>
 </body>
 </html>

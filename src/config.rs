@@ -27,6 +27,9 @@ pub const DEFAULT_CONFIG_TEMPLATE: &str = r#"# =================================
 # 托盘中显示的应用名称
 app_name = "NetTrigger"
 
+# 界面与交互语言: "auto" (自动跟随系统) | "zh" (简体中文) | "en" (English)
+language = "auto"
+
 # 运行档位预设: "gaming" (电竞极速) | "balanced" (平衡推荐) | "power_save" (省电办公)
 # 预设会自动调节底层防抖与保活心跳频率，无需繁琐微调：
 #   - "gaming"    : 50ms 瞬时防抖，15s 心跳保活，绝不弹窗切屏
@@ -112,6 +115,147 @@ User-Agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTM
 Content-Type = "application/x-www-form-urlencoded"
 "#;
 
+/// 标准英文配置模板（操作系统为非中文环境且无 config.toml 时自动写入）
+pub const DEFAULT_CONFIG_TEMPLATE_EN: &str = r#"# ==============================================================================
+# NetTrigger Core Configuration (config.toml)
+# Edit and save, then right-click the tray icon and click "Settings" to verify!
+# ==============================================================================
+
+[general]
+# Application display name in system tray
+app_name = "NetTrigger"
+
+# Interface and interaction language: "auto" (follow system) | "zh" (Chinese) | "en" (English)
+language = "auto"
+
+# Operating profile: "gaming" | "balanced" | "power_save"
+# Profiles automatically adjust link debounce and heartbeat intervals:
+#   - "gaming"    : 50ms instant debounce, 15s heartbeat, zero-focus distraction
+#   - "balanced"  : 150ms debounce, 45s heartbeat (Recommended)
+#   - "power_save": 500ms debounce, 90s heartbeat (Extended laptop battery life)
+profile = "gaming"
+
+# Heartbeat probe interval when online (seconds; explicit value overrides profile)
+heartbeat_interval_sec = 45
+
+# Windows OS-level network change watcher (0ms instant trigger, true recommended)
+enable_zero_latency_watcher = true
+
+# Link stabilization debounce time (milliseconds, empty to follow profile)
+# debounce_ms = 50
+
+# Silent mode: when true, suppresses desktop notifications on reconnect
+silent_mode = true
+
+# Allow opening browser as fallback on consecutive failures (false recommended for gaming/focus)
+allow_browser_fallback = false
+
+# Maximum backoff retry delay on failure (seconds, prevents server flooding)
+max_backoff_sec = 60
+
+
+# ==============================================================================
+# Network Connectivity Probes
+# ==============================================================================
+[probe]
+# Primary probe endpoint (Standard ultra-low-latency 204 No Content URL)
+primary_url = "http://connectivitycheck.gstatic.com/generate_204"
+
+# Fallback probe endpoint (Windows NCSI official test endpoint)
+fallback_url = "http://www.msftconnecttest.com/connecttest.txt"
+fallback_expected_keyword = "Microsoft Connect Test"
+
+# Probe timeout (milliseconds)
+timeout_ms = 3000
+
+
+# ==============================================================================
+# Authentication Actions
+# Mode options:
+#   "http"    - [Recommended] Background silent login without browser popup
+#   "browser" - [Simple] Automatically open login page in default browser
+# ==============================================================================
+[auth]
+mode = "http"
+
+# Captive portal / login page URL
+portal_url = "http://portal.example.com/"
+
+# ------------------------------------------------------------------------------
+# Silent HTTP Authentication (Only active when mode = "http")
+# Tip: In your browser login page, press F12 -> Network -> Click Login -> Inspect POST/GET
+#      Copy the Request URL and Payload parameters into the fields below!
+# ------------------------------------------------------------------------------
+[auth.http]
+# HTTP Method: POST or GET
+method = "POST"
+
+# Target login API endpoint
+action_url = "http://portal.example.com/api/login"
+
+# Form submission parameters (key-value pairs)
+# Dynamic macro variables supported:
+#   {username} - Replaced with configured username
+#   {password} - Replaced with configured password
+#   {ip}       - Replaced with current local outbound IP
+#   {mac}      - Replaced with current active adapter MAC address
+#   {time}     - Current 13-digit Unix millisecond timestamp
+#   {time_s}   - Current 10-digit Unix second timestamp
+[auth.http.params]
+username = "your_username_or_account"
+password = "your_password_here"
+
+# HTTP Headers (prevents anti-bot / crawler interception)
+[auth.http.headers]
+User-Agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+Content-Type = "application/x-www-form-urlencoded"
+"#;
+
+/// 系统运行与界面语言设置
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Language {
+    Auto,
+    Zh,
+    En,
+}
+
+impl Default for Language {
+    fn default() -> Self {
+        Language::Auto
+    }
+}
+
+impl fmt::Display for Language {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Language::Auto => write!(f, "auto"),
+            Language::Zh => write!(f, "zh"),
+            Language::En => write!(f, "en"),
+        }
+    }
+}
+
+/// 检测当前 Windows 操作系统的区域与语言偏好
+pub fn detect_system_language() -> Language {
+    #[cfg(windows)]
+    {
+        extern "system" {
+            fn GetUserDefaultUILanguage() -> u16;
+        }
+        let lcid = unsafe { GetUserDefaultUILanguage() };
+        // 0x0804 = zh-CN (PRC), 0x0404 = zh-TW (Taiwan), 0x0c04 = zh-HK (Hong Kong), 0x1404 = zh-MO, 0x1004 = zh-SG
+        match lcid {
+            0x0804 | 0x0404 | 0x0c04 | 0x1404 | 0x1004 => Language::Zh,
+            _ => Language::En,
+        }
+    }
+    #[cfg(not(windows))]
+    {
+        Language::En
+    }
+}
+
 #[derive(Debug)]
 pub enum ConfigError {
     Io(std::io::Error),
@@ -169,6 +313,9 @@ pub struct GeneralConfig {
     #[serde(default = "default_app_name")]
     pub app_name: String,
 
+    #[serde(default)]
+    pub language: Language,
+
     #[serde(default = "default_profile")]
     pub profile: String,
 
@@ -192,6 +339,14 @@ pub struct GeneralConfig {
 }
 
 impl GeneralConfig {
+    /// 计算实际生效的界面与交互语言
+    pub fn effective_language(&self) -> Language {
+        match self.language {
+            Language::Auto => detect_system_language(),
+            lang => lang,
+        }
+    }
+
     /// 计算实际生效的物理链路稳定防抖时间 (毫秒)
     pub fn effective_debounce_ms(&self) -> u64 {
         if let Some(ms) = self.debounce_ms {
@@ -221,6 +376,7 @@ impl Default for GeneralConfig {
     fn default() -> Self {
         Self {
             app_name: default_app_name(),
+            language: Language::Auto,
             profile: default_profile(),
             heartbeat_interval_sec: default_heartbeat_interval_sec(),
             enable_zero_latency_watcher: default_true(),
@@ -499,7 +655,7 @@ pub fn get_local_mac_address() -> Option<String> {
 }
 
 impl Config {
-    /// 加载配置文件；若不存在，则原子化创建带中文注释的默认配置文件并返回
+    /// 加载配置文件；若不存在，则原子化创建带对应语言注释的默认配置文件并返回
     pub fn load_or_create() -> Result<(Self, bool), ConfigError> {
         let path = get_config_path();
         if !path.exists() {
@@ -507,9 +663,14 @@ impl Config {
             if let Some(parent) = path.parent() {
                 let _ = fs::create_dir_all(parent);
             }
-            // 写入中文注释模板
-            fs::write(&path, DEFAULT_CONFIG_TEMPLATE)?;
-            let config: Config = toml::from_str(DEFAULT_CONFIG_TEMPLATE)?;
+            // 根据系统语言自动写入中文或英文默认模板
+            let sys_lang = detect_system_language();
+            let template = match sys_lang {
+                Language::Zh => DEFAULT_CONFIG_TEMPLATE,
+                _ => DEFAULT_CONFIG_TEMPLATE_EN,
+            };
+            fs::write(&path, template)?;
+            let config: Config = toml::from_str(template)?;
             return Ok((config, true));
         }
 
@@ -556,6 +717,7 @@ mod tests {
         assert!(cfg_res.is_ok(), "默认模板必须能够正常反序列化");
         if let Ok(cfg) = cfg_res {
             assert_eq!(cfg.general.app_name, "NetTrigger");
+            assert_eq!(cfg.general.language, Language::Auto);
             assert_eq!(cfg.general.profile, "gaming");
             assert_eq!(cfg.general.effective_debounce_ms(), 50);
             assert_eq!(cfg.general.effective_heartbeat_interval_sec(), 15);
@@ -566,6 +728,29 @@ mod tests {
             assert_eq!(cfg.auth.mode, "http");
             assert_eq!(cfg.auth.http.method, "POST");
         }
+    }
+
+    #[test]
+    fn test_parse_english_template() {
+        let cfg_res: Result<Config, _> = toml::from_str(DEFAULT_CONFIG_TEMPLATE_EN);
+        assert!(cfg_res.is_ok(), "英文模板必须能够正常反序列化");
+        if let Ok(cfg) = cfg_res {
+            assert_eq!(cfg.general.app_name, "NetTrigger");
+            assert_eq!(cfg.general.language, Language::Auto);
+            assert_eq!(cfg.general.profile, "gaming");
+            assert_eq!(cfg.probe.primary_url, "http://connectivitycheck.gstatic.com/generate_204");
+            assert_eq!(cfg.auth.mode, "http");
+        }
+    }
+
+    #[test]
+    fn test_language_resolution() {
+        let mut cfg = GeneralConfig::default();
+        cfg.language = Language::En;
+        assert_eq!(cfg.effective_language(), Language::En);
+
+        cfg.language = Language::Zh;
+        assert_eq!(cfg.effective_language(), Language::Zh);
     }
 
     #[test]
