@@ -279,8 +279,9 @@ fn toml_to_json_str(config: &Config) -> String {
     }
 
     format!(
-        r#"{{"general":{{"profile":"{}","silent_mode":{},"allow_browser_fallback":{},"language":"{}"}},"effective_language":"{}","auth":{{"mode":"{}","portal_url":"{}","http":{{"action_url":"{}","method":"{}","params":{{{}}}}}}}}}"#,
+        r#"{{"general":{{"profile":"{}","scenario":"{}","silent_mode":{},"allow_browser_fallback":{},"language":"{}"}},"effective_language":"{}","auth":{{"mode":"{}","portal_url":"{}","http":{{"action_url":"{}","method":"{}","params":{{{}}}}}}}}}"#,
         config.general.profile,
+        config.general.scenario,
         config.general.silent_mode,
         config.general.allow_browser_fallback,
         config.general.language,
@@ -302,6 +303,13 @@ fn parse_json_to_config(json: &str, fallback: &Config) -> Result<Config, ()> {
     }
     if let Some(profile) = extract_json_value(json, "profile") {
         updated.general.profile = profile;
+    }
+    if let Some(scen) = extract_json_value(json, "scenario") {
+        updated.general.scenario = match scen.to_lowercase().as_str() {
+            "public" => crate::config::Scenario::Public,
+            "universal" => crate::config::Scenario::Universal,
+            _ => crate::config::Scenario::Campus,
+        };
     }
     if let Some(lang) = extract_json_value(json, "language") {
         updated.general.language = match lang.to_lowercase().as_str() {
@@ -359,11 +367,13 @@ mod tests {
         cfg.auth.mode = "browser".to_string();
         let json = toml_to_json_str(&cfg);
         assert!(json.contains("\"profile\":\"gaming\""));
+        assert!(json.contains("\"scenario\":\"campus\""));
         assert!(json.contains("\"mode\":\"browser\""));
         assert!(json.contains("\"language\":\"auto\""));
 
         let parsed = parse_json_to_config(&json, &cfg).unwrap();
         assert_eq!(parsed.general.profile, "gaming");
+        assert_eq!(parsed.general.scenario, crate::config::Scenario::Campus);
         assert_eq!(parsed.auth.mode, "browser");
         assert_eq!(parsed.general.language, crate::config::Language::Auto);
     }

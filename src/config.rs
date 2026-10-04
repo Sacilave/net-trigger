@@ -30,6 +30,9 @@ app_name = "NetTrigger"
 # 界面与交互语言: "auto" (自动跟随系统) | "zh" (简体中文) | "en" (English)
 language = "auto"
 
+# 使用场景: "campus" (宿舍/校园网) | "public" (公司/商用WiFi) | "universal" (其它网络)
+scenario = "campus"
+
 # 运行档位预设: "gaming" (电竞极速) | "balanced" (平衡推荐) | "power_save" (省电办公)
 # 预设会自动调节底层防抖与保活心跳频率，无需繁琐微调：
 #   - "gaming"    : 50ms 瞬时防抖，15s 心跳保活，绝不弹窗切屏
@@ -127,6 +130,9 @@ app_name = "NetTrigger"
 
 # Interface and interaction language: "auto" (follow system) | "zh" (Chinese) | "en" (English)
 language = "auto"
+
+# Scenario preset: "campus" (Campus network) | "public" (Office / Public Wi-Fi) | "universal" (Other networks)
+scenario = "campus"
 
 # Operating profile: "gaming" | "balanced" | "power_save"
 # Profiles automatically adjust link debounce and heartbeat intervals:
@@ -236,6 +242,31 @@ impl fmt::Display for Language {
     }
 }
 
+/// 业务使用场景设置
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Scenario {
+    Campus,
+    Public,
+    Universal,
+}
+
+impl Default for Scenario {
+    fn default() -> Self {
+        Scenario::Campus
+    }
+}
+
+impl fmt::Display for Scenario {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Scenario::Campus => write!(f, "campus"),
+            Scenario::Public => write!(f, "public"),
+            Scenario::Universal => write!(f, "universal"),
+        }
+    }
+}
+
 /// 检测当前 Windows 操作系统的区域与语言偏好
 pub fn detect_system_language() -> Language {
     #[cfg(windows)]
@@ -316,6 +347,9 @@ pub struct GeneralConfig {
     #[serde(default)]
     pub language: Language,
 
+    #[serde(default)]
+    pub scenario: Scenario,
+
     #[serde(default = "default_profile")]
     pub profile: String,
 
@@ -377,6 +411,7 @@ impl Default for GeneralConfig {
         Self {
             app_name: default_app_name(),
             language: Language::Auto,
+            scenario: Scenario::Campus,
             profile: default_profile(),
             heartbeat_interval_sec: default_heartbeat_interval_sec(),
             enable_zero_latency_watcher: default_true(),
@@ -773,6 +808,7 @@ mod tests {
         if let Ok(cfg) = cfg_res {
             assert_eq!(cfg.general.app_name, "NetTrigger");
             assert_eq!(cfg.general.language, Language::Auto);
+            assert_eq!(cfg.general.scenario, Scenario::Campus);
             assert_eq!(cfg.general.profile, "gaming");
             assert_eq!(cfg.general.effective_debounce_ms(), 50);
             assert_eq!(cfg.general.effective_heartbeat_interval_sec(), 15);
@@ -792,6 +828,7 @@ mod tests {
         if let Ok(cfg) = cfg_res {
             assert_eq!(cfg.general.app_name, "NetTrigger");
             assert_eq!(cfg.general.language, Language::Auto);
+            assert_eq!(cfg.general.scenario, Scenario::Campus);
             assert_eq!(cfg.general.profile, "gaming");
             assert_eq!(cfg.probe.primary_url, "http://connectivitycheck.gstatic.com/generate_204");
             assert_eq!(cfg.auth.mode, "http");
@@ -806,6 +843,38 @@ mod tests {
 
         cfg.language = Language::Zh;
         assert_eq!(cfg.effective_language(), Language::Zh);
+    }
+
+    #[test]
+    fn test_scenario_resolution() {
+        let toml_campus = r#"
+        [general]
+        scenario = "campus"
+        "#;
+        let cfg1: Config = toml::from_str(toml_campus).unwrap();
+        assert_eq!(cfg1.general.scenario, Scenario::Campus);
+
+        let toml_public = r#"
+        [general]
+        scenario = "public"
+        "#;
+        let cfg2: Config = toml::from_str(toml_public).unwrap();
+        assert_eq!(cfg2.general.scenario, Scenario::Public);
+
+        let toml_universal = r#"
+        [general]
+        scenario = "universal"
+        "#;
+        let cfg3: Config = toml::from_str(toml_universal).unwrap();
+        assert_eq!(cfg3.general.scenario, Scenario::Universal);
+
+        // 老版本无 scenario 字段时，默认兼容为 Campus
+        let toml_legacy = r#"
+        [general]
+        profile = "gaming"
+        "#;
+        let cfg_legacy: Config = toml::from_str(toml_legacy).unwrap();
+        assert_eq!(cfg_legacy.general.scenario, Scenario::Campus);
     }
 
     #[test]

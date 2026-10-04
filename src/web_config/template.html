@@ -554,17 +554,22 @@
         </div>
         <div>
           <h1 id="txt-title">NetTrigger 设置</h1>
-          <div class="subtitle" id="txt-subtitle">网络事件自动化感知与无感重连守护</div>
+          <div class="subtitle" id="txt-subtitle">掉线自动重连 · 打游戏看视频不弹窗</div>
         </div>
       </div>
       <div style="display: flex; align-items: center; gap: 8px;">
-        <button type="button" class="btn btn-secondary btn-sm" onclick="openGuideModal()" id="btn-guide" style="display: flex; align-items: center; gap: 5px; cursor: pointer; padding: 5px 11px;" title="查看校园网配置步骤与避坑指南">
+        <select id="scenario-selector" onchange="changeScenario(this.value)" style="padding: 4px 8px; font-size: 12px; background: var(--surface-elevated); border: 1px solid var(--border); border-radius: var(--radius); color: var(--text); cursor: pointer; outline: none; font-weight: 500;" title="使用场景">
+          <option value="campus" id="opt-scen-campus">🎓 宿舍 / 校园网</option>
+          <option value="public" id="opt-scen-public">🏢 公司 / 商用 WiFi</option>
+          <option value="universal" id="opt-scen-universal">🌐 其它网络</option>
+        </select>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="openGuideModal()" id="btn-guide" style="display: flex; align-items: center; gap: 5px; cursor: pointer; padding: 5px 11px;" title="遇到问题点我看看">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="12" cy="12" r="10"></circle>
             <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
             <line x1="12" y1="17" x2="12.01" y2="17"></line>
           </svg>
-          <span id="btn-guide-txt">校园网设置指南</span>
+          <span id="btn-guide-txt">💡 使用指南</span>
         </button>
         <select id="lang-selector" onchange="changeLanguage(this.value)" style="padding: 4px 8px; font-size: 12px; background: var(--surface-elevated); border: 1px solid var(--border); border-radius: var(--radius); color: var(--text-secondary); cursor: pointer; outline: none;">
           <option value="auto">🌐 自动 / Auto</option>
@@ -592,8 +597,8 @@
       <div class="timeout-body">
         <div class="timeout-title" id="txt-timeout-title">当前设置服务已超时休眠</div>
         <div class="timeout-desc" id="txt-timeout-desc">
-          为保证 0% CPU 与极轻内存（&lt;2MB），后台服务在空闲 5 分钟后已自动关闭。<br>
-          <b>如需保存修改：请在电脑右下角任务栏托盘图标重新点击【⚙️ 设置】唤醒。</b>
+          为保证电脑 0% 卡顿与极轻运行，后台设置在闲置 5 分钟后已关闭。<br>
+          <b>如需保存修改：请在电脑右下角任务栏托盘图标重新点击【⚙️ 设置】。</b>
         </div>
       </div>
       <button type="button" class="btn btn-secondary btn-sm" onclick="checkOrReconnect()" id="btn-reconnect-txt">检测连通</button>
@@ -607,7 +612,7 @@
           <line x1="2" y1="12" x2="22" y2="12"></line>
           <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
         </svg>
-        <span id="tab-browser-txt">自动打开网页登录 (有弹窗)</span>
+        <span id="tab-browser-txt">打开网页登录 (新手推荐·会弹网页)</span>
       </button>
       <button type="button" class="segment-btn" id="tab-http" onclick="switchMode('http')">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -616,86 +621,85 @@
           <line x1="6" y1="6" x2="6.01" y2="6"></line>
           <line x1="6" y1="18" x2="6.01" y2="18"></line>
         </svg>
-        <span id="tab-http-txt">后台静默登录 (无弹窗)</span>
+        <span id="tab-http-txt">后台自动连 (⭐强推·无弹窗不切屏)</span>
       </button>
     </div>
 
     <!-- 主表单卡片 -->
     <div class="card">
-      <!-- 模式 1：自动打开网页登录 (有弹窗) -->
+      <!-- 模式 1：打开网页登录 (会弹网页) -->
       <div id="panel-browser">
         <div class="form-group">
-          <label for="portal_url" id="lbl-portal-url">校园网 / 认证登录网址</label>
-          <input type="text" id="portal_url" placeholder="例如: http://10.10.1.1/ 或 http://portal.univ.edu/">
+          <label for="portal_url" id="lbl-portal-url">登录网页网址</label>
+          <input type="text" id="portal_url" placeholder="例如: http://10.10.1.1/，不知道可直接留空">
           <div id="warn-portal-url" style="display:none; margin-top: 6px; padding: 10px 14px; background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.35); border-radius: 8px; font-size: 12.5px; color: #fca5a5; line-height: 1.5;"></div>
           <div class="help-text" id="txt-browser-help">
-            检测到掉线或拦截时，将自动调用系统浏览器打开该网址（会有前台弹窗/切屏），由浏览器记住的密码完成登录。<br>
-            <b>无需在此填写任何账号和密码；若不确定具体网址可直接留空，掉线时程序将全自动动态捕获最新登录页！</b>
+            掉线时会自动用浏览器打开这个网页。若不确定具体网址可直接留空，断网时程序会自动找！
           </div>
         </div>
       </div>
 
-      <!-- 模式 2：后台静默模拟登录 (需配置账号密码) -->
+      <!-- 模式 2：后台自动连 (无弹窗) -->
       <div id="panel-http" style="display: none; flex-direction: column; gap: 14px;">
         <div class="form-group">
-          <label for="action_url" id="lbl-action-url">登录网址</label>
-          <input type="text" id="action_url" placeholder="例如: http://10.10.1.1/api/login 或认证放行网址">
+          <label for="action_url" id="lbl-action-url">登录提交网址</label>
+          <input type="text" id="action_url" placeholder="提交登录的网址，或使用下方【一键自动提取】">
           <div id="warn-action-url" style="display:none; margin-top: 6px; padding: 10px 14px; background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.35); border-radius: 8px; font-size: 12.5px; color: #fca5a5; line-height: 1.5;"></div>
         </div>
 
         <div class="row">
           <div class="form-group">
-            <label for="username" id="lbl-username">用户名 / 学号</label>
-            <input type="text" id="username" placeholder="学号或宽带账号">
+            <label for="username" id="lbl-username">学号 / 上网账号</label>
+            <input type="text" id="username" placeholder="输入学号或账号">
           </div>
           <div class="form-group">
-            <label for="password" id="lbl-password">认证密码</label>
-            <input type="password" id="password" placeholder="认证密码">
+            <label for="password" id="lbl-password">上网密码</label>
+            <input type="password" id="password" placeholder="输入密码 (免密网页可留空)">
           </div>
         </div>
 
-        <!-- 进阶折叠：cURL 智能解析与自定义参数 -->
+        <!-- 进阶折叠：30秒一键提取 -->
         <details>
           <summary>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <polyline points="6 9 12 15 18 9"></polyline>
             </svg>
-            <span id="txt-advanced-summary">🛠️ 高级参数与一键自动提取 (推荐小白使用)</span>
+            <span id="txt-advanced-summary">✨ 不会填？点这里一键自动帮我填好 (最简单)</span>
           </summary>
           <div class="details-content">
             <!-- 30秒极速提取指引框 -->
             <div style="background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.25); border-radius: 8px; padding: 10px 14px; font-size: 12.5px; line-height: 1.55; color: var(--text-secondary); margin-bottom: 12px;">
               <div style="font-weight: 600; color: #93c5fd; margin-bottom: 4px; display: flex; align-items: center; gap: 6px;">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
-                <span id="txt-curl-tip-title">不知道接口怎么填？30 秒全自动提取：</span>
+                <span id="txt-curl-tip-title">👉 30 秒全自动填好：</span>
               </div>
               <div id="txt-curl-tip-desc">
-                ① 浏览器打开校园网登录页，按键盘 <b>F12</b> ➔ 切换到 <b>Network (网络)</b> 标签；<br>
-                ② 输入账号密码点击登录 ➔ 在请求列表中右键登录请求 ➔ 选 <b>Copy as cURL</b>；<br>
-                ③ 粘贴在下方并点击【自动提取填充】，所有参数将全自动配置好！
+                ① 浏览器打开登录页，按键盘 <b>F12</b> ➔ 切换到 <b>Network (网络)</b> 标签；<br>
+                ② 正常点一次登录 ➔ 在列表找到登录请求右键 ➔ 选 <b>Copy as cURL</b>；<br>
+                ③ 粘贴在下方框内，点击【自动帮我填好】，所有内容自动配置完成！
               </div>
             </div>
 
             <div class="form-group">
-              <label id="lbl-curl-import">从浏览器 cURL 快速导入</label>
+              <label id="lbl-curl-import">从浏览器复制粘贴 (自动提取)</label>
               <textarea id="curl-input" rows="2" placeholder="在登录页按 F12 -> Network -> 右键登录请求 -> Copy as cURL 粘贴于此"></textarea>
               <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px;">
-                <button type="button" class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px;" onclick="applyRuijiePreset()" id="btn-ruijie-preset">🎓 锐捷/SAM+ 一键预设</button>
-                <button type="button" class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px;" onclick="parseCurl()" id="btn-curl-parse">自动提取填充</button>
+                <button type="button" class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px;" onclick="applyRuijiePreset()" id="btn-ruijie-preset">🎓 锐捷/SAM+ 一键填好</button>
+                <button type="button" class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px;" onclick="parseCurl()" id="btn-curl-parse">自动帮我填好</button>
               </div>
             </div>
 
             <div class="row">
               <div class="form-group">
-                <label for="method" id="lbl-method">请求方法</label>
+                <label for="method" id="lbl-method">登录方式</label>
                 <select id="method">
-                  <option value="POST" id="opt-method-post">POST (提交账号密码·最常用)</option>
-                  <option value="GET" id="opt-method-get">GET (直接访问网址放行)</option>
+                  <option value="POST" id="opt-method-post">POST (最常用·提交账号密码)</option>
+                  <option value="GET" id="opt-method-get">GET (访问网址直接放行)</option>
                 </select>
               </div>
               <div class="form-group">
-                <label for="extra_params" id="lbl-extra-params">补充表单参数 (自动提取后一般无需修改)</label>
-                <input type="text" id="extra_params" placeholder="例如: domain=telecom&wlanuserip={ip}">
+                <label for="extra_params" id="lbl-extra-params">补充参数 (自动提取后无需修改)</label>
+                <input type="text" id="extra_params" placeholder="自动提取，无需手动填写">
               </div>
             </div>
           </div>
@@ -705,19 +709,19 @@
       <!-- 偏好设置分层 (档位与免打扰) -->
       <div style="border-top: 1px solid var(--border); padding-top: 14px; display: flex; flex-direction: column; gap: 12px;">
         <div class="form-group">
-          <label id="lbl-sensitivity">运行灵敏度</label>
+          <label id="lbl-sensitivity">重连速度</label>
           <div class="profile-selector">
             <div class="profile-pill active" id="p-gaming" onclick="selectProfile('gaming')">
               <div class="profile-pill-title" id="p-gaming-title">50ms</div>
-              <div class="profile-pill-desc" id="p-gaming-desc">电竞极速</div>
+              <div class="profile-pill-desc" id="p-gaming-desc">⚡ 电竞极速</div>
             </div>
             <div class="profile-pill" id="p-balanced" onclick="selectProfile('balanced')">
               <div class="profile-pill-title" id="p-balanced-title">150ms</div>
-              <div class="profile-pill-desc" id="p-balanced-desc">日常推荐</div>
+              <div class="profile-pill-desc" id="p-balanced-desc">👌 日常推荐</div>
             </div>
             <div class="profile-pill" id="p-power_save" onclick="selectProfile('power_save')">
               <div class="profile-pill-title" id="p-power_save-title">500ms</div>
-              <div class="profile-pill-desc" id="p-power_save-desc">省电长续航</div>
+              <div class="profile-pill-desc" id="p-power_save-desc">🔋 笔记本省电</div>
             </div>
           </div>
         </div>
@@ -725,7 +729,7 @@
         <div class="checkbox-row">
           <label class="checkbox-label">
             <input type="checkbox" id="silent_mode" checked>
-            <span id="txt-silent-mode">静默模式：重连成功时不弹出 Windows 气泡通知</span>
+            <span id="txt-silent-mode">静默模式：重连成功时不弹出电脑右下角通知 (打游戏推荐开启)</span>
           </label>
         </div>
       </div>
@@ -765,39 +769,31 @@
     const I18N = {
       zh: {
         title: "NetTrigger 设置",
-        subtitle: "网络事件自动化感知与无感重连守护",
         status: "守护中",
-        tab_browser: "自动打开网页登录 (有弹窗)",
-        tab_http: "后台静默登录 (无弹窗)",
-        portal_label: "校园网登录网址",
-        portal_ph: "例如: http://10.10.1.1/ 或 http://portal.univ.edu/",
-        browser_help: "检测到掉线或拦截时，将自动调用系统浏览器打开该网址（会有前台弹窗/切屏），由浏览器记住的密码完成登录。<br><b>无需在此填写任何账号和密码</b>。",
-        action_label: "登录网址",
-        action_ph: "例如: http://10.10.1.1/api/login 或认证放行网址",
-        username_label: "用户名 / 学号",
-        username_ph: "学号或宽带账号",
-        password_label: "认证密码",
-        password_ph: "认证密码",
-        advanced_summary: "🛠️ 高级参数与一键自动提取 (推荐小白使用)",
-        curl_label: "从浏览器 cURL 快速导入",
-        curl_ph: "在登录页 F12 -> Network -> 右键登录请求 -> Copy as cURL 粘贴于此",
-        curl_btn: "自动提取填充",
-        curl_tip_title: "不知道接口怎么填？30 秒全自动提取：",
-        curl_tip_desc: "① 浏览器打开校园网登录页，按键盘 <b>F12</b> ➔ 切换到 <b>Network (网络)</b> 标签；<br>② 输入账号密码点击登录 ➔ 在请求列表中右键登录请求 ➔ 选 <b>Copy as cURL</b>；<br>③ 粘贴在下方并点击【自动提取填充】，所有参数将全自动配置好！",
-        method_label: "请求方法",
-        opt_method_post: "POST (提交账号密码·最常用)",
-        opt_method_get: "GET (直接访问网址放行)",
-        extra_label: "补充表单参数 (自动提取后一般无需修改)",
-        extra_ph: "例如: domain=telecom&wlanuserip={ip}",
-        sensitivity_label: "运行灵敏度",
+        opt_scen_campus: "🎓 宿舍 / 校园网",
+        opt_scen_public: "🏢 公司 / 商用 WiFi",
+        opt_scen_universal: "🌐 其它网络",
+        tab_browser: "打开网页登录 (新手推荐·会弹网页)",
+        tab_http: "后台自动连 (⭐强推·无弹窗不切屏)",
+        advanced_summary: "✨ 不会填？点这里一键自动帮我填好 (最简单)",
+        curl_label: "从浏览器复制粘贴 (自动提取)",
+        curl_ph: "在登录页按 F12 -> Network -> 右键登录请求 -> Copy as cURL 粘贴于此",
+        curl_btn: "自动帮我填好",
+        curl_tip_title: "👉 30 秒全自动填好：",
+        curl_tip_desc: "① 浏览器打开登录页，按键盘 <b>F12</b> ➔ 切换到 <b>Network (网络)</b> 标签；<br>② 正常点一次登录 ➔ 在列表找到登录请求右键 ➔ 选 <b>Copy as cURL</b>；<br>③ 粘贴在下方框内，点击【自动帮我填好】，所有内容自动配置完成！",
+        method_label: "登录方式",
+        opt_method_post: "POST (最常用·提交账号密码)",
+        opt_method_get: "GET (访问网址直接放行)",
+        extra_label: "补充参数 (自动提取后无需修改)",
+        extra_ph: "自动提取，无需手动填写",
+        sensitivity_label: "重连速度",
         gaming_title: "50ms",
-        gaming_desc: "电竞极速",
+        gaming_desc: "⚡ 电竞极速",
         balanced_title: "150ms",
-        balanced_desc: "日常推荐",
+        balanced_desc: "👌 日常推荐",
         powersave_title: "500ms",
-        powersave_desc: "省电长续航",
-        silent_label: "静默模式：重连成功时不弹出 Windows 气泡通知",
-        btn_guide: "校园网设置指南",
+        powersave_desc: "🔋 笔记本省电",
+        silent_label: "静默模式：重连成功时不弹出电脑右下角通知 (打游戏推荐开启)",
         btn_test: "测试连接",
         btn_file: "打开本地配置文件",
         btn_save: "保存设置",
@@ -811,30 +807,43 @@
         file_ok: "已在系统文本编辑器中打开 config.toml",
         file_fail: "无法打开配置文件",
         network_error: "网络错误",
-        curl_success: "已成功从 cURL 提取参数并填入表单",
-        timeout_status: "已休眠 (超时)",
-        timeout_title: "当前设置服务已超时休眠",
-        timeout_desc: "为保证 0% CPU 与极轻内存（&lt;2MB），后台服务在空闲 5 分钟后已自动关闭。<br><b>当前网页已无法保存修改，请在电脑右下角任务栏托盘图标重新点击【⚙️ 设置】唤醒进入。</b>",
-        timeout_save_failed: "⚠️ 当前网页已经超时，修改未能保存！请在电脑右下角托盘图标重新点击【⚙️ 设置】进入并保存。",
+        curl_success: "已成功自动提取所有参数并填入表单！",
+        timeout_status: "已休眠",
+        timeout_title: "设置页面已休眠",
+        timeout_desc: "为保证电脑 0% 卡顿与极轻运行，后台设置在闲置 5 分钟后已关闭。<br><b>如需保存修改：请在电脑右下角任务栏托盘图标重新点击【⚙️ 设置】。</b>",
+        timeout_save_failed: "⚠️ 页面已超时休眠，修改未能保存！请在电脑右下角托盘重新点击【⚙️ 设置】。",
         timeout_reconnect_btn: "检测连通",
         timeout_restored: "已成功重新连通设置服务",
         timeout_still_offline: "服务尚未唤醒，请先在电脑右下角任务栏托盘图标点击【⚙️ 设置】",
-        guide_modal_title: "校园网设置与避坑指南",
-        guide_content: `<div class="guide-card" style="border-left: 3px solid var(--primary);">
-  <div class="guide-card-title">⚡ 极速模式速选（小白 3 秒做决定）</div>
+        scenarios: {
+          campus: {
+            subtitle: "掉线自动重连 · 打游戏看视频不弹窗",
+            portal_label: "校园网登录网址",
+            portal_ph: "例如: http://10.10.1.1/，不知道可直接留空",
+            browser_help: "掉线时会自动用浏览器打开这个网页。若不确定具体网址可直接留空，断网时程序会自动找！",
+            action_label: "登录提交网址",
+            action_ph: "提交登录的网址，或使用下方【一键自动提取】",
+            username_label: "学号 / 上网账号",
+            username_ph: "输入学号或宽带账号",
+            password_label: "上网密码",
+            password_ph: "输入校园网密码",
+            btn_guide: "💡 校园网新手指南",
+            guide_modal_title: "校园网使用与避坑指南",
+            guide_content: `<div class="guide-card" style="border-left: 3px solid var(--primary);">
+  <div class="guide-card-title">⚡ 极速模式选择（小白 3 秒做决定）</div>
   <div style="display: flex; flex-direction: column; gap: 8px;">
-    <div><b>1. 自动打开网页登录 (有弹窗)</b>：零技术门槛，只需填登录网址。已在 Chrome/Edge 记住密码的用户直接用。掉线时自动弹出浏览器页面登录（适合日常浏览网页）。</div>
-    <div><b>2. 后台静默登录 (无弹窗) ⭐ 强推</b>：打游戏、看电影或远程会议首选！掉线后后台 0.05 秒静默认证，<b>0 弹窗、不夺前台焦点、游戏不切屏不掉帧</b>！</div>
+    <div><b>1. 打开网页登录 (会弹网页)</b>：最简单，只需填登录网址。已在浏览器记住密码的用户直接用。掉线时自动弹出浏览器页面登录。</div>
+    <div><b>2. 后台自动连 (无弹窗) ⭐ 强推</b>：打游戏、看电影或开会首选！掉线后后台秒速自动登录，<b>0 弹窗、不夺焦点、游戏绝不切屏不卡顿</b>！</div>
   </div>
 </div>
 
 <div class="guide-card">
-  <div class="guide-card-title">🚀 30 秒全自动配置【后台静默登录】（全网通用）</div>
-  <div style="margin-bottom: 6px; color: var(--text-secondary);">不需要手动分析深奥协议！利用浏览器开发者工具 30 秒全自动提取：</div>
+  <div class="guide-card-title">🚀 30 秒全自动填好（全网通用）</div>
+  <div style="margin-bottom: 6px; color: var(--text-secondary);">不用懂技术！利用浏览器开发者工具 30 秒自动搞定：</div>
   <div class="guide-step-list">
     <div class="guide-step-item">
       <div class="guide-step-badge">1</div>
-      <div class="guide-step-text">打开校园网登录页面，按键盘 <strong>F12</strong>（笔记本若有 Fn 请按 <strong>Fn + F12</strong>，或右键“检查”）。</div>
+      <div class="guide-step-text">打开校园网登录页面，按键盘 <strong>F12</strong>（笔记本按 <strong>Fn + F12</strong>，或鼠标右键“检查”）。</div>
     </div>
     <div class="guide-step-item">
       <div class="guide-step-badge">2</div>
@@ -842,152 +851,279 @@
     </div>
     <div class="guide-step-item">
       <div class="guide-step-badge">3</div>
-      <div class="guide-step-text">在网页正常输入学号/宽带账号密码，点击<strong>“登录”</strong>。</div>
+      <div class="guide-step-text">在网页输入学号/宽带密码，正常点一次<strong>“登录”</strong>。</div>
     </div>
     <div class="guide-step-item">
       <div class="guide-step-badge">4</div>
-      <div class="guide-step-text">在 Network 列表中找到提交登录的请求（通常第一条或带有 login / do / srun），<strong>鼠标右键 ➔ Copy (复制) ➔ Copy as cURL</strong>。</div>
+      <div class="guide-step-text">在 Network 列表中找到提交登录的那一行，<strong>鼠标右键 ➔ Copy (复制) ➔ Copy as cURL</strong>。</div>
     </div>
     <div class="guide-step-item">
       <div class="guide-step-badge">5</div>
-      <div class="guide-step-text">回到本设置界面的【高级选项】，粘贴进文本框点击<strong>【自动提取填充】</strong>并保存，全部参数自动配置完成！</div>
+      <div class="guide-step-text">粘贴到本界面的框内，点击<strong>【自动帮我填好】</strong>并保存，全部参数自动搞定！</div>
     </div>
   </div>
 </div>
 
 <div class="guide-card">
-  <div class="guide-card-title">🏫 国内四大主流校园网特征速查</div>
+  <div class="guide-card-title">🏫 常见校园网速查与提示</div>
   <div class="school-grid">
     <div class="school-box">
-      <div class="school-box-title">🔷 锐捷网络 (Ruijie / ePortal)</div>
+      <div class="school-box-title">🔷 锐捷网络 (Ruijie)</div>
       <div>
         • 特征：网址含 <span class="code-chip">eportal</span>、<span class="code-chip">InterFace.do</span> 或 <span class="code-chip">success.jsp</span>。<br>
-        • 技巧：支持成功页放行的学校，可直接把 <span class="code-chip">success.jsp?...</span> 填入【登录网址】并选 GET；账号登录按 F12 复制 cURL 导入。<br>
-        • 提示：放行后若跳转到 123.123.123.123 白屏是锐捷正常现象，代表已放行。
+        • 技巧：点击界面下方的【🎓 锐捷一键填好】按钮可直接快速载入接口，输入密码即可。
       </div>
     </div>
     <div class="school-box">
-      <div class="school-box-title">🔶 深澜软件 (srun 3000 / 4000)</div>
+      <div class="school-box-title">🔶 深澜软件 (Srun)</div>
       <div>
         • 特征：网址常包含 <span class="code-chip">/cgi-bin/srun_portal</span>。<br>
-        • 技巧：深澜多带有动态 IP 与 ac_id，直接使用 F12 复制 cURL 导入，NetTrigger 会自动把 IP 替换为 <span class="code-chip">{ip}</span> 宏，换网也能自动适应！
+        • 技巧：直接使用 F12 复制 cURL 导入，程序会自动识别并绑定动态 IP，即使换 WiFi 也能自愈！
       </div>
     </div>
     <div class="school-box">
-      <div class="school-box-title">🟢 城市热点 (Dr.COM / 哆咪)</div>
+      <div class="school-box-title">🟢 城市热点 (Dr.COM)</div>
       <div>
         • 特征：常见于 <span class="code-chip">:801/eportal/</span> 或 <span class="code-chip">a70.htm</span>。<br>
-        • 技巧：支持网页 GET/POST 模拟，按 F12 复制 cURL 一键导入即搞定。
+        • 技巧：按 F12 复制 cURL 一键导入即可秒连。
       </div>
     </div>
     <div class="school-box">
-      <div class="school-box-title">🟣 华为 / H3C 等网关</div>
+      <div class="school-box-title">🟣 华为 / 其它网关</div>
       <div>
-        • 特征：标准 HTTP POST 表单提交。<br>
-        • 技巧：直接使用 F12 复制 cURL 一键导入，或手动填入【登录网址】与用户名密码。
+        • 特征：标准网页表单提交。<br>
+        • 技巧：按 F12 复制 cURL 一键导入，或手动填入网址与用户名密码。
       </div>
     </div>
   </div>
 </div>
 
 <div class="guide-card">
-  <div class="guide-card-title">❓ 常见避坑问答 (FAQ)</div>
+  <div class="guide-card-title">❓ 常见问题</div>
   <div style="display: flex; flex-direction: column; gap: 8px;">
-    <div><b>Q: 为什么我打游戏还是偶尔被弹窗？</b><br>A: 请检查当前模式是否误选了“自动打开网页登录”，切换至“后台静默登录 (无弹窗)”即可绝对静默。</div>
-    <div><b>Q: 电脑每天休眠或重启后 IP 会变，需要重新配吗？</b><br>A: 不需要！通过 F12 导入后，NetTrigger 每次连网都会动态获取本机当前真实网卡 IP 发送认证，全程全自动。</div>
-    <div><b>Q: 如果实在搞不懂怎么配怎么办？</b><br>A: 别担心！请查看下方专门为您准备的【求助 AI 专用 Prompt】，点击复制后发送给您常用的 AI 即可获得一对一针对性填写答案。</div>
+    <div><b>Q: 为什么打游戏偶尔还是弹出了网页？</b><br>A: 请检查模式是否误选了“打开网页登录”，切换至“后台自动连 (⭐强推·无弹窗不切屏)”即可彻底静默。</div>
+    <div><b>Q: 电脑休眠或重启后 IP 会变，需要重新配吗？</b><br>A: 不需要！程序每次连网都会自动查找本机当前最新网卡 IP 发送，全程全自动。</div>
   </div>
 </div>
 
 <div class="guide-card" style="border: 1px solid rgba(139, 92, 246, 0.45); background: rgba(139, 92, 246, 0.06);">
   <div class="guide-card-title" style="color: #c4b5fd;">
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M12 2a10 10 0 0 1 10 10c0 5.523-4.477 10-10 10S2 17.523 2 12 6.477 2 12 2z"></path>
-      <path d="M12 8v4"></path>
-      <path d="M12 16h.01"></path>
-    </svg>
-    🤖 依然无法搞定？复制 Prompt 求助常用 AI 助手
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 0 1 10 10c0 5.523-4.477 10-10 10S2 17.523 2 12 6.477 2 12 2z"></path><path d="M12 8v4"></path><path d="M12 16h.01"></path></svg>
+    🤖 还是搞不懂怎么填？复制大白话发给 AI 助手
   </div>
   <div style="font-size: 12.5px; line-height: 1.6; color: var(--text-secondary); margin-bottom: 10px;">
-    您可以复制下方专为本软件调优的<b>结构化诊断提示词</b>，发送给您习惯使用的 AI 助手（如 <b>DeepSeek、Kimi、豆包、通义千问、ChatGPT、Claude、Gemini</b> 等），并附上您的校园网网址或 F12 抓包信息，AI 会为您格式化直接输出应填写的每一项！
+    你可以复制下方整理好的<b>大白话诊断提示词</b>，发给你常用的 AI（如 <b>DeepSeek、Kimi、豆包、ChatGPT</b> 等），并附上你的登录网址或 F12 复制的内容，AI 会直接给你一份简单表格，照着填就行！
   </div>
   <div style="position: relative;">
-    <pre style="background: rgba(0, 0, 0, 0.4); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; font-size: 11.5px; line-height: 1.55; color: #cbd5e1; max-height: 140px; overflow-y: auto; white-space: pre-wrap; font-family: Consolas, Monaco, monospace; margin: 0;" id="ai-prompt-text-zh">你是一名精通高校校园网认证机制（如深澜 srun、锐捷 Ruijie/ePortal、城市热点 Dr.COM、华为等体系）的技术专家。
-我现在正在使用专为 Windows 打造的原生自动化网络守护工具 NetTrigger。请根据我后面提供的校园网登录网址、跳转链接或浏览器 F12 cURL 抓包数据，帮我分析并直接给出在 NetTrigger 中的具体填写方案。
+    <pre style="background: rgba(0, 0, 0, 0.4); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; font-size: 11.5px; line-height: 1.55; color: #cbd5e1; max-height: 140px; overflow-y: auto; white-space: pre-wrap; font-family: Consolas, Monaco, monospace; margin: 0;" id="ai-prompt-text-zh">你是一名校园网登录专家。我现在正在使用轻量网络守护工具 NetTrigger，请根据我后面提供的登录网址或浏览器 F12 cURL 抓包数据，帮我分析并以最简单的小白表格告诉我应该怎么填：
 
-【NetTrigger 设置选项与规则说明】
-1. 运行模式：
-   - "自动打开网页登录 (有弹窗)"：适合不想配参数、仅填登录网址并由浏览器自动登录的小白（掉线会弹网页切屏）。
-   - "后台静默登录 (无弹窗)"（强烈推荐）：后台静默发包，打游戏不弹窗不切屏。
-2. 后台静默登录参数：
-   - 登录网址 (action_url)：认证提交的真实接口地址或免密放行网址。
-   - 用户名 (username) 与 认证密码 (password)：若网址已自带凭证（如包含 userIndex 或 Token 的 success.jsp 链接），则全部留空；若需提交账号密码，则分别填写。
-   - 请求方法 (method)：POST（常规密码认证）或 GET（放行网址/跳转链接认证）。
-   - 补充表单参数 (extra_params)：如 domain=telecom 等扩展键值对，若无则留空。支持动态宏：{username}, {password}, {ip}, {mac}, {time}。
-
-【你的任务】
-请分析我发给你的校园网信息：
-1. 辨别我的校园网体系类型（深澜 / 锐捷 / Dr.COM / 其它）；
-2. 以清晰简洁的表格格式，直接告诉我应该怎么填写：
-   | 设置项 | 推荐填写值 | 说明 |
-   | :--- | :--- | :--- |
-   | 推荐模式 | [后台静默登录 (无弹窗) / 自动打开网页登录 (有弹窗)] | 模式选择 |
-   | 登录网址 | [具体 URL] | 提交地址或放行网址 |
-   | 用户名 | [留空 / 你的学号] | 是否需要填写学号 |
-   | 认证密码 | [留空 / 你的密码] | 是否需要填写密码 |
-   | 请求方法 | [POST / GET] | 高级选项中的方法 |
-   | 补充表单参数 | [留空 / 提取后的 key=value] | 高级选项中的参数 |
-3. 给出 1~2 句简短的避坑提示。
+| 设置项 | 推荐填写值 | 说明 |
+| :--- | :--- | :--- |
+| 推荐模式 | [后台自动连 / 打开网页登录] | 哪种方式适合我 |
+| 登录网址 | [网址] | 应该填的网址 |
+| 上网账号 | [留空 / 我的学号] | 是否需要填写学号 |
+| 上网密码 | [留空 / 我的密码] | 是否需要填写密码 |
+| 登录方式 | [POST / GET] | 下拉选哪一个 |
+| 补充参数 | [留空 / 自动提取参数] | 补充参数栏怎么填 |
 
 我的校园网信息如下：
-[请在此处粘贴你的校园网登录网址、放行链接或浏览器 F12 cURL 抓包数据]</pre>
+[请在此粘贴你的登录网址或浏览器 F12 cURL 数据]</pre>
   </div>
   <div style="display: flex; justify-content: flex-end; margin-top: 10px;">
     <button type="button" class="btn btn-secondary btn-sm" onclick="copyAiPrompt()" id="btn-copy-prompt-zh" style="display: inline-flex; align-items: center; gap: 6px; font-weight: 600; color: #a78bfa; border-color: rgba(167, 139, 250, 0.45); cursor: pointer;">
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-      </svg>
-      <span id="txt-copy-prompt-zh">📋 一键复制求助 AI 专用 Prompt</span>
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+      <span id="txt-copy-prompt-zh">📋 一键复制求助 AI 提问词</span>
     </button>
   </div>
 </div>`
+          },
+          public: {
+            subtitle: "公司 / 酒店 / 公共 Wi-Fi 自动放行与断网唤醒",
+            portal_label: "WiFi 登录网页网址",
+            portal_ph: "连上 WiFi 后弹出的网址，不知道可直接留空",
+            browser_help: "连上 WiFi 后会自动在浏览器打开这个网页。如果不确定网址直接留空，程序会自动捕获！",
+            action_label: "登录或放行网址",
+            action_ph: "提交登录或同意放行的网址，或使用下方【一键自动提取】",
+            username_label: "工号 / 手机号 / 账号",
+            username_ph: "工号、手机号或访客码 (无需账号请留空)",
+            password_label: "上网密码 / 验证码",
+            password_ph: "密码或验证码 (只需点击同意上网请留空)",
+            btn_guide: "💡 公共WiFi设置指引",
+            guide_modal_title: "公司与公共 Wi-Fi 连接指引",
+            guide_content: `<div class="guide-card" style="border-left: 3px solid var(--primary);">
+  <div class="guide-card-title">⚡ 模式选择建议</div>
+  <div style="display: flex; flex-direction: column; gap: 8px;">
+    <div><b>1. 只需要点一次“同意免费上网”的网页</b>：使用【后台自动连】，通过 F12 抓包导入点击同意的链接，电脑每次连上该 Wi-Fi 后会自动在后台放行，不需要再手动弹窗点确定！</div>
+    <div><b>2. 需要每次输入手机短信验证码</b>：建议选【打开网页登录】，连上 WiFi 后会自动打开网页方便你输入最新验证码。大多数商用 WiFi 登录一次后会记住电脑 MAC 地址 24 小时，当天都不用再登。</div>
+  </div>
+</div>
+
+<div class="guide-card">
+  <div class="guide-card-title">🚀 30 秒全自动填好（免密点击/工号认证通用）</div>
+  <div class="guide-step-list">
+    <div class="guide-step-item">
+      <div class="guide-step-badge">1</div>
+      <div class="guide-step-text">电脑连上该 WiFi 打开登录网页，按键盘 <strong>F12</strong> ➔ 切换到 <strong>Network (网络)</strong> 标签。</div>
+    </div>
+    <div class="guide-step-item">
+      <div class="guide-step-badge">2</div>
+      <div class="guide-step-text">在网页上点击“同意上网”或输入账号点击登录。</div>
+    </div>
+    <div class="guide-step-item">
+      <div class="guide-step-badge">3</div>
+      <div class="guide-step-text">在网络列表中右键该请求 ➔ <strong>Copy ➔ Copy as cURL</strong>。</div>
+    </div>
+    <div class="guide-step-item">
+      <div class="guide-step-badge">4</div>
+      <div class="guide-step-text">粘贴到本界面并点击<strong>【自动帮我填好】</strong>，保存即可！</div>
+    </div>
+  </div>
+</div>
+
+<div class="guide-card">
+  <div class="guide-card-title">❓ 常见问题</div>
+  <div style="display: flex; flex-direction: column; gap: 8px;">
+    <div><b>Q: 很多酒店或商场 WiFi 每次都换网页地址怎么办？</b><br>A: 【登录网页网址】直接留空即可！NetTrigger 会在连上网络后动态自动探测并捕获最新的登录入口。</div>
+  </div>
+</div>
+
+<div class="guide-card" style="border: 1px solid rgba(139, 92, 246, 0.45); background: rgba(139, 92, 246, 0.06);">
+  <div class="guide-card-title" style="color: #c4b5fd;">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 0 1 10 10c0 5.523-4.477 10-10 10S2 17.523 2 12 6.477 2 12 2z"></path><path d="M12 8v4"></path><path d="M12 16h.01"></path></svg>
+    🤖 还是搞不懂怎么配？一键复制发给 AI
+  </div>
+  <div style="font-size: 12.5px; line-height: 1.6; color: var(--text-secondary); margin-bottom: 10px;">
+    把下方的提示词和你的 WiFi 网页链接或 F12 cURL 数据发送给任意 AI 助手，AI 会直接给你一份现成的填写指南：
+  </div>
+  <div style="position: relative;">
+    <pre style="background: rgba(0, 0, 0, 0.4); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; font-size: 11.5px; line-height: 1.55; color: #cbd5e1; max-height: 140px; overflow-y: auto; white-space: pre-wrap; font-family: Consolas, Monaco, monospace; margin: 0;" id="ai-prompt-text-zh">我正在使用 Windows 自动连网守护工具 NetTrigger 连接公司/公共 WiFi。请根据我后面提供的登录网页地址或浏览器 F12 cURL 抓包数据，帮我以极简表格告诉我该怎么填：
+
+| 设置项 | 推荐填写值 | 说明 |
+| :--- | :--- | :--- |
+| 推荐模式 | [后台自动连 / 打开网页登录] | 哪种方式适合我 |
+| 登录网址 | [网址] | 应该填的网址 |
+| 上网账号 | [留空 / 账号] | 是否需要填写账号 |
+| 上网密码 | [留空 / 密码] | 是否需要填写密码 |
+| 登录方式 | [POST / GET] | 下拉选哪一个 |
+| 补充参数 | [留空 / 自动提取参数] | 补充参数栏怎么填 |
+
+WiFi 信息如下：
+[请在此粘贴你的网页链接或 F12 cURL 数据]</pre>
+  </div>
+  <div style="display: flex; justify-content: flex-end; margin-top: 10px;">
+    <button type="button" class="btn btn-secondary btn-sm" onclick="copyAiPrompt()" id="btn-copy-prompt-zh" style="display: inline-flex; align-items: center; gap: 6px; font-weight: 600; color: #a78bfa; border-color: rgba(167, 139, 250, 0.45); cursor: pointer;">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+      <span id="txt-copy-prompt-zh">📋 一键复制求助 AI 提问词</span>
+    </button>
+  </div>
+</div>`
+          },
+          universal: {
+            subtitle: "掉线秒速重连 · 全程静默无感运行",
+            portal_label: "登录网页网址",
+            portal_ph: "网页登录地址，不知道可直接留空",
+            browser_help: "网络需要登录时会自动在浏览器打开该网页。留空时程序会自动寻找最新登录页。",
+            action_label: "登录提交网址",
+            action_ph: "登录接口网址，或使用下方【一键自动提取】",
+            username_label: "上网账号",
+            username_ph: "输入账号 (无需账号请留空)",
+            password_label: "上网密码",
+            password_ph: "输入密码 (免密网页请留空)",
+            btn_guide: "💡 常用技巧与指引",
+            guide_modal_title: "网络自动连接指引与技巧",
+            guide_content: `<div class="guide-card" style="border-left: 3px solid var(--primary);">
+  <div class="guide-card-title">⚡ 极速工作原理</div>
+  <div style="line-height: 1.6;">
+    NetTrigger 监听 Windows 原生网卡插拔与 WiFi 切换事件，<b>0 秒毫秒级响应</b>，掉线后立即后台静默重连。<br>
+    平时常驻内存 &lt; 2MB，CPU 0.00%，极致轻量，完全无感。
+  </div>
+</div>
+
+<div class="guide-card">
+  <div class="guide-card-title">🚀 30 秒全自动填好</div>
+  <div class="guide-step-list">
+    <div class="guide-step-item">
+      <div class="guide-step-badge">1</div>
+      <div class="guide-step-text">打开网页登录界面，按 <strong>F12</strong> ➔ 切换到 <strong>Network (网络)</strong>。</div>
+    </div>
+    <div class="guide-step-item">
+      <div class="guide-step-badge">2</div>
+      <div class="guide-step-text">正常点一次登录 ➔ 列表右键该登录请求 ➔ <strong>Copy ➔ Copy as cURL</strong>。</div>
+    </div>
+    <div class="guide-step-item">
+      <div class="guide-step-badge">3</div>
+      <div class="guide-step-text">粘贴到设置页并点击<strong>【自动帮我填好】</strong>，保存即可开启后台全天候守护！</div>
+    </div>
+  </div>
+</div>
+
+<div class="guide-card">
+  <div class="guide-card-title">💡 自动适配内网动态 IP</div>
+  <div style="line-height: 1.6;">
+    如果你的登录接口带有动态 IP 参数，自动提取会自动填充 <span class="code-chip">{ip}</span> 宏。无论电脑何时断开重新连接，NetTrigger 都会动态查询当前最新网卡 IP 发送，无需反复修改。
+  </div>
+</div>
+
+<div class="guide-card" style="border: 1px solid rgba(139, 92, 246, 0.45); background: rgba(139, 92, 246, 0.06);">
+  <div class="guide-card-title" style="color: #c4b5fd;">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 0 1 10 10c0 5.523-4.477 10-10 10S2 17.523 2 12 6.477 2 12 2z"></path><path d="M12 8v4"></path><path d="M12 16h.01"></path></svg>
+    🤖 一键复制发给 AI 助手
+  </div>
+  <div style="font-size: 12.5px; line-height: 1.6; color: var(--text-secondary); margin-bottom: 10px;">
+    若不确定如何配置，可以把下方提示词与你的抓包或登录信息发给 AI 获得即时填表指导：
+  </div>
+  <div style="position: relative;">
+    <pre style="background: rgba(0, 0, 0, 0.4); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; font-size: 11.5px; line-height: 1.55; color: #cbd5e1; max-height: 140px; overflow-y: auto; white-space: pre-wrap; font-family: Consolas, Monaco, monospace; margin: 0;" id="ai-prompt-text-zh">我正在使用 Windows 原生轻量网络守护工具 NetTrigger。请根据我后面提供的登录网址或浏览器 F12 cURL 抓包数据，帮我以极简表格格式告诉我应该怎么填：
+
+| 设置项 | 推荐填写值 | 说明 |
+| :--- | :--- | :--- |
+| 推荐模式 | [后台自动连 / 打开网页登录] | 模式选择 |
+| 登录网址 | [网址] | 登录提交地址 |
+| 上网账号 | [留空 / 账号] | 账号 |
+| 上网密码 | [留空 / 密码] | 密码 |
+| 登录方式 | [POST / GET] | 请求方法 |
+| 补充参数 | [留空 / 自动提取参数] | 扩展参数 |
+
+信息如下：
+[请在此粘贴你的登录网址或浏览器 F12 cURL 数据]</pre>
+  </div>
+  <div style="display: flex; justify-content: flex-end; margin-top: 10px;">
+    <button type="button" class="btn btn-secondary btn-sm" onclick="copyAiPrompt()" id="btn-copy-prompt-zh" style="display: inline-flex; align-items: center; gap: 6px; font-weight: 600; color: #a78bfa; border-color: rgba(167, 139, 250, 0.45); cursor: pointer;">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+      <span id="txt-copy-prompt-zh">📋 一键复制求助 AI 提问词</span>
+    </button>
+  </div>
+</div>`
+          }
+        }
       },
       en: {
         title: "NetTrigger Settings",
-        subtitle: "Event-driven network status keeper & zero-distraction reconnect",
         status: "Guarding",
-        tab_browser: "Auto-Open Browser Login (Popup)",
-        tab_http: "Silent Background Login (No Popup)",
-        portal_label: "Campus Portal Login URL",
-        portal_ph: "e.g., http://10.10.1.1/ or http://portal.univ.edu/",
-        browser_help: "When disconnected or intercepted, this URL will be opened in your default browser (causes popup window/focus shift), relying on browser-saved passwords.<br><b>No credentials needed here</b>.",
-        action_label: "Login URL",
-        action_ph: "e.g., http://10.10.1.1/api/login or portal release URL",
-        username_label: "Username / Account",
-        username_ph: "Username, account, or student ID",
-        password_label: "Password",
-        password_ph: "Password",
-        advanced_summary: "🛠️ Advanced Options & Auto-Extract (Recommended)",
-        curl_label: "Quick Import from Browser cURL",
+        opt_scen_campus: "🎓 Campus Network",
+        opt_scen_public: "🏢 Office / Public Wi-Fi",
+        opt_scen_universal: "🌐 Other Networks",
+        tab_browser: "Open Webpage to Login (Popup)",
+        tab_http: "Silent Auto-Login (Recommended · No Popup)",
+        advanced_summary: "✨ Don't know how to fill? Auto-extract in 30s",
+        curl_label: "Paste from Browser (Auto-Extract)",
         curl_ph: "Press F12 on login page -> Network -> Right-click login request -> Copy as cURL -> Paste here",
-        curl_btn: "Auto-Extract",
-        curl_tip_title: "Don't know how to fill? 30-sec Auto-Extract:",
-        curl_tip_desc: "① Open login page in browser, press <b>F12</b> ➔ switch to <b>Network</b> tab;<br>② Enter credentials and click login ➔ right click the login request ➔ <b>Copy as cURL</b>;<br>③ Paste below and click [Auto-Extract] to configure everything automatically!",
-        method_label: "HTTP Method",
-        opt_method_post: "POST (Submit Credentials - Standard)",
+        curl_btn: "Auto-Fill for Me",
+        curl_tip_title: "👉 30-Second Auto-Fill:",
+        curl_tip_desc: "① Open login page in browser, press <b>F12</b> ➔ switch to <b>Network</b> tab;<br>② Enter credentials and click login ➔ right click the login request ➔ <b>Copy as cURL</b>;<br>③ Paste below and click [Auto-Fill for Me] to configure everything automatically!",
+        method_label: "Login Method",
+        opt_method_post: "POST (Standard - Submit Credentials)",
         opt_method_get: "GET (Direct URL Access)",
-        extra_label: "Extra Form Parameters (Usually auto-filled)",
-        extra_ph: "e.g., domain=default&wlanuserip={ip}",
-        sensitivity_label: "Operating Sensitivity",
+        extra_label: "Extra Parameters (Auto-filled)",
+        extra_ph: "Auto-extracted, usually not needed",
+        sensitivity_label: "Reconnect Speed",
         gaming_title: "50ms",
-        gaming_desc: "Gaming Speed",
+        gaming_desc: "⚡ Gaming Speed",
         balanced_title: "150ms",
-        balanced_desc: "Balanced",
+        balanced_desc: "👌 Balanced",
         powersave_title: "500ms",
-        powersave_desc: "Power Save",
-        silent_label: "Silent Mode: Suppress Windows notifications on reconnect",
-        btn_guide: "Setup Guide",
+        powersave_desc: "🔋 Power Save",
+        silent_label: "Silent mode: Suppress desktop notifications on reconnect",
         btn_test: "Test Connection",
         btn_file: "Open Config File",
         btn_save: "Save Settings",
@@ -1001,150 +1137,257 @@
         file_ok: "Opened config.toml in default editor",
         file_fail: "Failed to open config file",
         network_error: "Network error",
-        curl_success: "Parameters extracted from cURL successfully",
-        timeout_status: "Dormant (Timed out)",
+        curl_success: "All parameters extracted and filled successfully!",
+        timeout_status: "Dormant",
         timeout_title: "Settings Session Timed Out",
         timeout_desc: "To maintain 0% CPU and minimal RAM (&lt;2MB), the temporary service automatically closed after 5 minutes of inactivity.<br><b>Please re-click [⚙️ Settings] in the system tray to re-open and save.</b>",
         timeout_save_failed: "⚠️ Settings session timed out, changes were not saved! Please re-click [⚙️ Settings] in the system tray to re-open and save.",
         timeout_reconnect_btn: "Check Connection",
         timeout_restored: "Successfully reconnected to settings service",
         timeout_still_offline: "Service dormant. Please click [⚙️ Settings] in the system tray first",
-        guide_modal_title: "Campus Network Setup Guide",
-        guide_content: `<div class="guide-card" style="border-left: 3px solid var(--primary);">
+        scenarios: {
+          campus: {
+            subtitle: "Auto-reconnect on disconnect · Zero popups",
+            portal_label: "Campus Portal Login URL",
+            portal_ph: "e.g., http://10.10.1.1/ or leave empty to auto-detect",
+            browser_help: "When disconnected, this page will be opened in your browser. Leave empty to auto-detect.",
+            action_label: "Login Submit URL",
+            action_ph: "Login endpoint URL or use auto-extract below",
+            username_label: "Student ID / Account",
+            username_ph: "Student ID or account",
+            password_label: "Password",
+            password_ph: "Campus network password",
+            btn_guide: "💡 Campus Guide",
+            guide_modal_title: "Campus Network Setup Guide",
+            guide_content: `<div class="guide-card" style="border-left: 3px solid var(--primary);">
   <div class="guide-card-title">⚡ Quick Mode Selection (3 Seconds)</div>
   <div style="display: flex; flex-direction: column; gap: 8px;">
-    <div><b>1. Auto-Open Browser Login (Popup Window)</b>: Zero technical setup. Just provide the portal URL. Best if your password is already saved in Chrome/Edge. The browser window will pop up when disconnected.</div>
-    <div><b>2. Silent Background Login (No Popup) ⭐ Recommended</b>: Ideal for gaming, streaming, or video calls! Reconnects in 0.05s completely in the background without popups or losing window focus.</div>
+    <div><b>1. Open Webpage to Login (Popup)</b>: Zero technical setup. Opens browser when disconnected. Best if credentials are saved in browser.</div>
+    <div><b>2. Silent Auto-Login (No Popup) ⭐ Recommended</b>: Ideal for gaming, streaming, or video calls! Reconnects in 0.05s in the background without popups or losing window focus.</div>
   </div>
 </div>
 
 <div class="guide-card">
-  <div class="guide-card-title">🚀 30-Second Automatic Setup for Silent Login (Universal)</div>
-  <div style="margin-bottom: 6px; color: var(--text-secondary);">No need to study complex network requests! Use browser tools to auto-extract in 30 seconds:</div>
+  <div class="guide-card-title">🚀 30-Second Automatic Setup</div>
   <div class="guide-step-list">
     <div class="guide-step-item">
       <div class="guide-step-badge">1</div>
-      <div class="guide-step-text">Open campus portal login page, press <strong>F12</strong> (or <strong>Fn + F12</strong>, or right-click -> Inspect).</div>
+      <div class="guide-step-text">Open campus portal login page, press <strong>F12</strong> (or <strong>Fn + F12</strong>).</div>
     </div>
     <div class="guide-step-item">
       <div class="guide-step-badge">2</div>
-      <div class="guide-step-text">Switch to the <strong>Network</strong> tab at the top of Developer Tools.</div>
+      <div class="guide-step-text">Switch to the <strong>Network</strong> tab at the top.</div>
     </div>
     <div class="guide-step-item">
       <div class="guide-step-badge">3</div>
-      <div class="guide-step-text">Enter your credentials and click <strong>Login</strong> on the webpage.</div>
+      <div class="guide-step-text">Enter credentials and click <strong>Login</strong>.</div>
     </div>
     <div class="guide-step-item">
       <div class="guide-step-badge">4</div>
-      <div class="guide-step-text">Find the login request (often containing login / do / srun), <strong>Right-Click ➔ Copy ➔ Copy as cURL</strong>.</div>
+      <div class="guide-step-text">Find the login request, <strong>Right-Click ➔ Copy ➔ Copy as cURL</strong>.</div>
     </div>
     <div class="guide-step-item">
       <div class="guide-step-badge">5</div>
-      <div class="guide-step-text">Go back to NetTrigger's Advanced Options, paste into the box, click <strong>Auto-Extract</strong>, and Save!</div>
+      <div class="guide-step-text">Paste into NetTrigger, click <strong>Auto-Fill for Me</strong>, and Save!</div>
     </div>
   </div>
 </div>
 
 <div class="guide-card">
-  <div class="guide-card-title">🏫 Chinese Campus Portal Systems Overview</div>
-  <div class="school-grid">
-    <div class="school-box">
-      <div class="school-box-title">🔷 Ruijie / ePortal</div>
-      <div>
-        • URL usually contains <span class="code-chip">eportal</span>, <span class="code-chip">InterFace.do</span>, or <span class="code-chip">success.jsp</span>.<br>
-        • If your school supports session keepalive via success.jsp, you can put that URL directly in Login URL with GET method; otherwise import cURL via F12.<br>
-        • Note: Redirecting to 123.123.123.123 on success is Ruijie's normal behavior.
-      </div>
-    </div>
-    <div class="school-box">
-      <div class="school-box-title">🔶 Srun (深澜 3000 / 4000)</div>
-      <div>
-        • URL usually contains <span class="code-chip">/cgi-bin/srun_portal</span>.<br>
-        • Highly recommended to import via F12 cURL. NetTrigger automatically substitutes dynamic IP with the <span class="code-chip">{ip}</span> macro.
-      </div>
-    </div>
-    <div class="school-box">
-      <div class="school-box-title">🟢 Dr.COM (城市热点 / 哆咪)</div>
-      <div>
-        • Often at <span class="code-chip">:801/eportal/</span> or <span class="code-chip">a70.htm</span>.<br>
-        • Supports GET/POST simulation; import cURL via F12 for 1-click configuration.
-      </div>
-    </div>
-    <div class="school-box">
-      <div class="school-box-title">🟣 Huawei / H3C Portals</div>
-      <div>
-        • Standard HTTP POST form submission.<br>
-        • Import via F12 cURL or fill Login URL with credentials.
-      </div>
-    </div>
-  </div>
-</div>
-
-<div class="guide-card">
-  <div class="guide-card-title">❓ Frequently Asked Questions (FAQ)</div>
+  <div class="guide-card-title">❓ FAQ</div>
   <div style="display: flex; flex-direction: column; gap: 8px;">
-    <div><b>Q: Why do I still get window popups during games?</b><br>A: Make sure you chose "Silent Background Login (No Popup)" instead of the browser popup mode.</div>
-    <div><b>Q: Does dynamic IP change affect silent login?</b><br>A: No! NetTrigger queries your current active network adapter IP before every reconnection request and injects it automatically.</div>
-    <div><b>Q: Still don't know how to configure?</b><br>A: No worries! Check out the AI prompt below. Click copy and send it to your favorite AI to get an instant tailored configuration table.</div>
+    <div><b>Q: Why do I still get window popups during games?</b><br>A: Make sure you selected "Silent Auto-Login (No Popup)" instead of the browser popup mode.</div>
+    <div><b>Q: Does dynamic IP change affect silent login?</b><br>A: No! NetTrigger automatically queries your current active network IP before every reconnection request.</div>
   </div>
 </div>
 
 <div class="guide-card" style="border: 1px solid rgba(139, 92, 246, 0.45); background: rgba(139, 92, 246, 0.06);">
   <div class="guide-card-title" style="color: #c4b5fd;">
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M12 2a10 10 0 0 1 10 10c0 5.523-4.477 10-10 10S2 17.523 2 12 6.477 2 12 2z"></path>
-      <path d="M12 8v4"></path>
-      <path d="M12 16h.01"></path>
-    </svg>
-    🤖 Still Stuck? Copy Prompt & Ask Your Favorite AI Assistant
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 0 1 10 10c0 5.523-4.477 10-10 10S2 17.523 2 12 6.477 2 12 2z"></path><path d="M12 8v4"></path><path d="M12 16h.01"></path></svg>
+    🤖 Still Stuck? Copy Prompt & Ask Your Favorite AI
   </div>
   <div style="font-size: 12.5px; line-height: 1.6; color: var(--text-secondary); margin-bottom: 10px;">
-    You can copy the structured diagnostic prompt below and send it to your preferred AI assistant (e.g., <b>DeepSeek, Kimi, Doubao, Qwen, ChatGPT, Claude, Gemini</b>, etc.) along with your portal login URL or F12 cURL. The AI will output ready-to-use NetTrigger settings directly!
+    Copy the prompt below and send it to your AI assistant along with your portal login URL or F12 cURL data:
   </div>
   <div style="position: relative;">
-    <pre style="background: rgba(0, 0, 0, 0.4); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; font-size: 11.5px; line-height: 1.55; color: #cbd5e1; max-height: 140px; overflow-y: auto; white-space: pre-wrap; font-family: Consolas, Monaco, monospace; margin: 0;" id="ai-prompt-text-en">You are an expert in campus network captive portal authentication mechanisms (e.g. Srun, Ruijie/ePortal, Dr.COM, Huawei, etc.).
-I am using NetTrigger, an ultra-lightweight native Windows network keeper. Based on the campus portal URL, redirect link, or browser F12 cURL data I provide below, please analyze and provide the exact values I should configure in NetTrigger.
+    <pre style="background: rgba(0, 0, 0, 0.4); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; font-size: 11.5px; line-height: 1.55; color: #cbd5e1; max-height: 140px; overflow-y: auto; white-space: pre-wrap; font-family: Consolas, Monaco, monospace; margin: 0;" id="ai-prompt-text-en">You are a campus network login assistant. I am using NetTrigger to automatically keep my PC connected. Based on the login URL or browser F12 cURL data I provide below, please tell me the exact settings to fill into NetTrigger in a simple table:
 
-【NetTrigger Setting Options & Rules】
-1. Mode:
-   - "Auto-Open Browser Login (Popup)": Good for users who don't want to configure HTTP parameters and only need the browser to open the URL when disconnected (will steal window focus / popup).
-   - "Silent Background Login (No Popup)" (Recommended): Headless HTTP request in the background, zero popup, never steals window focus during gaming or meetings.
-2. Silent Login Parameters:
-   - Login URL (action_url): The actual HTTP API endpoint or session release URL.
-   - Username & Password: If the URL already contains authentication credentials (e.g. a token or userIndex in a success.jsp link), leave them empty; otherwise fill with account credentials.
-   - HTTP Method: POST (standard form login) or GET (direct session release URL).
-   - Extra Form Parameters: Key-value pairs (e.g. domain=default). Leave empty if not required. Supports macros: {username}, {password}, {ip}, {mac}, {time}.
+| Setting | Recommended Value | Note |
+| :--- | :--- | :--- |
+| Mode | [Silent Auto-Login / Open Webpage] | Best mode for me |
+| Login URL | [Exact URL] | Endpoint URL |
+| Username | [Leave Empty / Student ID] | Account |
+| Password | [Leave Empty / Password] | Password |
+| Method | [POST / GET] | Request method |
+| Extra Parameters | [Leave Empty / Parameters] | Form parameters |
 
-【Your Task】
-Analyze the campus network information I provide below:
-1. Identify the campus network portal system (Srun / Ruijie / Dr.COM / etc.);
-2. Provide a clean and clear markdown table showing the exact settings:
-   | Setting | Recommended Value | Note |
-   | :--- | :--- | :--- |
-   | Mode | [Silent Background Login (No Popup) / Auto-Open Browser Login] | Selected mode |
-   | Login URL | [Exact URL] | Endpoint URL |
-   | Username | [Leave Empty / Your Student ID] | Account |
-   | Password | [Leave Empty / Your Password] | Password |
-   | HTTP Method | [POST / GET] | Request method in Advanced Options |
-   | Extra Form Parameters | [Leave Empty / Parsed key=value] | In Advanced Options |
-3. Provide 1~2 concise tips or common pitfalls to avoid.
-
-My campus network information:
-[Paste your login URL, redirect URL, or browser F12 cURL data here]</pre>
+My campus login information:
+[Paste your login URL or browser F12 cURL data here]</pre>
   </div>
   <div style="display: flex; justify-content: flex-end; margin-top: 10px;">
     <button type="button" class="btn btn-secondary btn-sm" onclick="copyAiPrompt()" id="btn-copy-prompt-en" style="display: inline-flex; align-items: center; gap: 6px; font-weight: 600; color: #a78bfa; border-color: rgba(167, 139, 250, 0.45); cursor: pointer;">
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-      </svg>
-      <span id="txt-copy-prompt-en">📋 1-Click Copy AI Diagnostic Prompt</span>
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+      <span id="txt-copy-prompt-en">📋 1-Click Copy AI Prompt</span>
     </button>
   </div>
 </div>`
+          },
+          public: {
+            subtitle: "Office / Hotel / Public Wi-Fi Auto-Keeper",
+            portal_label: "Wi-Fi Login Page URL",
+            portal_ph: "Wi-Fi portal page URL, or leave empty",
+            browser_help: "Opens this page when connected to Wi-Fi. Leave empty to auto-detect automatically.",
+            action_label: "Login / Release URL",
+            action_ph: "Endpoint URL or use auto-extract below",
+            username_label: "Staff ID / Phone / Account",
+            username_ph: "Staff ID, phone or code (leave empty if not needed)",
+            password_label: "Password / Code",
+            password_ph: "Password or code (leave empty if click-to-connect)",
+            btn_guide: "💡 Public Wi-Fi Guide",
+            guide_modal_title: "Public / Office Wi-Fi Setup Guide",
+            guide_content: `<div class="guide-card" style="border-left: 3px solid var(--primary);">
+  <div class="guide-card-title">⚡ Setup Guide</div>
+  <div style="display: flex; flex-direction: column; gap: 8px;">
+    <div><b>1. Click-to-Connect Wi-Fi (No password required)</b>: Use "Silent Auto-Login". Press F12 in browser, click "Agree / Connect", copy as cURL, and import into NetTrigger. Next time, it connects automatically!</div>
+    <div><b>2. SMS Verification Code Wi-Fi</b>: Use "Open Webpage to Login". Most commercial Wi-Fi remembers your laptop's MAC for 24 hours after one SMS login.</div>
+  </div>
+</div>
+
+<div class="guide-card">
+  <div class="guide-card-title">🚀 30-Second Automatic Setup</div>
+  <div class="guide-step-list">
+    <div class="guide-step-item">
+      <div class="guide-step-badge">1</div>
+      <div class="guide-step-text">Connect to the Wi-Fi, open the portal page, and press <strong>F12</strong>.</div>
+    </div>
+    <div class="guide-step-item">
+      <div class="guide-step-badge">2</div>
+      <div class="guide-step-text">Click "Connect" or enter your credentials and login.</div>
+    </div>
+    <div class="guide-step-item">
+      <div class="guide-step-badge">3</div>
+      <div class="guide-step-text">Right click the request in Network tab ➔ <strong>Copy as cURL</strong>.</div>
+    </div>
+    <div class="guide-step-item">
+      <div class="guide-step-badge">4</div>
+      <div class="guide-step-text">Paste here and click <strong>Auto-Fill for Me</strong>!</div>
+    </div>
+  </div>
+</div>
+
+<div class="guide-card" style="border: 1px solid rgba(139, 92, 246, 0.45); background: rgba(139, 92, 246, 0.06);">
+  <div class="guide-card-title" style="color: #c4b5fd;">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 0 1 10 10c0 5.523-4.477 10-10 10S2 17.523 2 12 6.477 2 12 2z"></path><path d="M12 8v4"></path><path d="M12 16h.01"></path></svg>
+    🤖 Ask Your Favorite AI Assistant
+  </div>
+  <div style="font-size: 12.5px; line-height: 1.6; color: var(--text-secondary); margin-bottom: 10px;">
+    Copy the prompt below to ask your AI assistant:
+  </div>
+  <div style="position: relative;">
+    <pre style="background: rgba(0, 0, 0, 0.4); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; font-size: 11.5px; line-height: 1.55; color: #cbd5e1; max-height: 140px; overflow-y: auto; white-space: pre-wrap; font-family: Consolas, Monaco, monospace; margin: 0;" id="ai-prompt-text-en">I am using NetTrigger to manage connection to an office / public Wi-Fi portal. Based on the login URL or browser F12 cURL data I provide below, please tell me how to configure NetTrigger in a simple table:
+
+| Setting | Recommended Value | Note |
+| :--- | :--- | :--- |
+| Mode | [Silent Auto-Login / Open Webpage] | Recommended mode |
+| Login URL | [Exact URL] | Endpoint URL |
+| Username | [Leave Empty / Account] | Account |
+| Password | [Leave Empty / Password] | Password |
+| Method | [POST / GET] | Request method |
+| Extra Parameters | [Leave Empty / Parameters] | Form parameters |
+
+Wi-Fi portal information:
+[Paste your login URL or browser F12 cURL data here]</pre>
+  </div>
+  <div style="display: flex; justify-content: flex-end; margin-top: 10px;">
+    <button type="button" class="btn btn-secondary btn-sm" onclick="copyAiPrompt()" id="btn-copy-prompt-en" style="display: inline-flex; align-items: center; gap: 6px; font-weight: 600; color: #a78bfa; border-color: rgba(167, 139, 250, 0.45); cursor: pointer;">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+      <span id="txt-copy-prompt-en">📋 1-Click Copy AI Prompt</span>
+    </button>
+  </div>
+</div>`
+          },
+          universal: {
+            subtitle: "Fast reconnect on disconnect · Silent background keeper",
+            portal_label: "Network Login URL",
+            portal_ph: "Login webpage URL, or leave empty",
+            browser_help: "Opens login page when auth is required. Leave empty to auto-detect automatically.",
+            action_label: "Login Endpoint URL",
+            action_ph: "Login interface URL or use auto-extract below",
+            username_label: "Username / Account",
+            username_ph: "Account identifier (leave empty if not needed)",
+            password_label: "Password",
+            password_ph: "Password (leave empty if not needed)",
+            btn_guide: "💡 User Guide",
+            guide_modal_title: "Network Setup Guide & Tips",
+            guide_content: `<div class="guide-card" style="border-left: 3px solid var(--primary);">
+  <div class="guide-card-title">⚡ How NetTrigger Works</div>
+  <div style="line-height: 1.6;">
+    NetTrigger listens to Windows network adapter and Wi-Fi events with <b>0ms instant response</b>.<br>
+    Runs in background with &lt; 2MB RAM and 0.00% CPU. Completely silent and distraction-free.
+  </div>
+</div>
+
+<div class="guide-card">
+  <div class="guide-card-title">🚀 30-Second Automatic Setup</div>
+  <div class="guide-step-list">
+    <div class="guide-step-item">
+      <div class="guide-step-badge">1</div>
+      <div class="guide-step-text">Open login page, press <strong>F12</strong> ➔ <strong>Network</strong> tab.</div>
+    </div>
+    <div class="guide-step-item">
+      <div class="guide-step-badge">2</div>
+      <div class="guide-step-text">Login once ➔ Right-click login request ➔ <strong>Copy ➔ Copy as cURL</strong>.</div>
+    </div>
+    <div class="guide-step-item">
+      <div class="guide-step-badge">3</div>
+      <div class="guide-step-text">Paste into NetTrigger, click <strong>Auto-Fill for Me</strong>, and Save!</div>
+    </div>
+  </div>
+</div>
+
+<div class="guide-card">
+  <div class="guide-card-title">💡 Dynamic IP Handling</div>
+  <div style="line-height: 1.6;">
+    If your login request requires local IP, NetTrigger automatically substitutes it with the <span class="code-chip">{ip}</span> macro and resolves your current adapter IP dynamically whenever you reconnect.
+  </div>
+</div>
+
+<div class="guide-card" style="border: 1px solid rgba(139, 92, 246, 0.45); background: rgba(139, 92, 246, 0.06);">
+  <div class="guide-card-title" style="color: #c4b5fd;">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 0 1 10 10c0 5.523-4.477 10-10 10S2 17.523 2 12 6.477 2 12 2z"></path><path d="M12 8v4"></path><path d="M12 16h.01"></path></svg>
+    🤖 Ask Your Favorite AI Assistant
+  </div>
+  <div style="font-size: 12.5px; line-height: 1.6; color: var(--text-secondary); margin-bottom: 10px;">
+    Copy the prompt below to ask your AI assistant:
+  </div>
+  <div style="position: relative;">
+    <pre style="background: rgba(0, 0, 0, 0.4); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; font-size: 11.5px; line-height: 1.55; color: #cbd5e1; max-height: 140px; overflow-y: auto; white-space: pre-wrap; font-family: Consolas, Monaco, monospace; margin: 0;" id="ai-prompt-text-en">I am using NetTrigger to automatically keep my PC connected. Based on the login URL or browser F12 cURL data I provide below, please tell me the exact settings to fill into NetTrigger in a simple table:
+
+| Setting | Recommended Value | Note |
+| :--- | :--- | :--- |
+| Mode | [Silent Auto-Login / Open Webpage] | Best mode |
+| Login URL | [Exact URL] | Endpoint URL |
+| Username | [Leave Empty / Account] | Account |
+| Password | [Leave Empty / Password] | Password |
+| Method | [POST / GET] | Request method |
+| Extra Parameters | [Leave Empty / Parameters] | Form parameters |
+
+Login information:
+[Paste your login URL or browser F12 cURL data here]</pre>
+  </div>
+  <div style="display: flex; justify-content: flex-end; margin-top: 10px;">
+    <button type="button" class="btn btn-secondary btn-sm" onclick="copyAiPrompt()" id="btn-copy-prompt-en" style="display: inline-flex; align-items: center; gap: 6px; font-weight: 600; color: #a78bfa; border-color: rgba(167, 139, 250, 0.45); cursor: pointer;">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+      <span id="txt-copy-prompt-en">📋 1-Click Copy AI Prompt</span>
+    </button>
+  </div>
+</div>`
+          }
+        }
       }
     };
 
+    let activeScenario = 'campus';
     let activeMode = 'browser';
     let activeProfile = 'gaming';
     let fullConfig = {};
@@ -1152,7 +1395,7 @@ My campus network information:
     let sessionTimeoutTimer = null;
     let isSessionExpired = false;
     let noticeTimeout = null;
-    const SESSION_TIMEOUT_MS = 300 * 1000; // 5分钟无请求自动休眠判定
+    const SESSION_TIMEOUT_MS = 300 * 1000;
 
     function resetSessionTimer() {
       if (sessionTimeoutTimer) clearTimeout(sessionTimeoutTimer);
@@ -1209,27 +1452,64 @@ My campus network information:
       showNotice(t.timeout_still_offline, 'error', 6500);
     }
 
+    function applyScenario(scen) {
+      activeScenario = scen || 'campus';
+      const elScen = document.getElementById('scenario-selector');
+      if (elScen && elScen.value !== activeScenario) elScen.value = activeScenario;
+
+      const langObj = I18N[currentLang];
+      const s = (langObj.scenarios && langObj.scenarios[activeScenario]) || langObj.scenarios['campus'];
+
+      const elSub = document.getElementById('txt-subtitle'); if (elSub) elSub.innerText = s.subtitle;
+      const elPortalLbl = document.getElementById('lbl-portal-url'); if (elPortalLbl) elPortalLbl.innerText = s.portal_label;
+      const elPortal = document.getElementById('portal_url'); if (elPortal) elPortal.placeholder = s.portal_ph;
+      const elBrowserHelp = document.getElementById('txt-browser-help'); if (elBrowserHelp) elBrowserHelp.innerHTML = s.browser_help;
+      const elActionLbl = document.getElementById('lbl-action-url'); if (elActionLbl) elActionLbl.innerText = s.action_label;
+      const elActionIn = document.getElementById('action_url'); if (elActionIn) elActionIn.placeholder = s.action_ph;
+      const elUserLbl = document.getElementById('lbl-username'); if (elUserLbl) elUserLbl.innerText = s.username_label;
+      const elUser = document.getElementById('username'); if (elUser) elUser.placeholder = s.username_ph;
+      const elPassLbl = document.getElementById('lbl-password'); if (elPassLbl) elPassLbl.innerText = s.password_label;
+      const elPass = document.getElementById('password'); if (elPass) elPass.placeholder = s.password_ph;
+
+      const elBtnGuide = document.getElementById('btn-guide-txt'); if (elBtnGuide) elBtnGuide.innerText = s.btn_guide;
+      const elGuideTitle = document.getElementById('guide-modal-title'); if (elGuideTitle) elGuideTitle.innerText = s.guide_modal_title;
+      const elGuideBody = document.getElementById('guide-modal-body'); if (elGuideBody) elGuideBody.innerHTML = s.guide_content;
+
+      // 仅在校园网模式下展示锐捷SAM+专属一键填好按钮，其他场景自动隐藏保持界面简洁
+      const elRuijie = document.getElementById('btn-ruijie-preset');
+      if (elRuijie) elRuijie.style.display = (activeScenario === 'campus') ? 'inline-flex' : 'none';
+
+      // 仅校园网模式检查 success.jsp 警告
+      if (activeScenario !== 'campus') {
+        const w1 = document.getElementById('warn-portal-url'); if (w1) w1.style.display = 'none';
+        const w2 = document.getElementById('warn-action-url'); if (w2) w2.style.display = 'none';
+      } else {
+        const pVal = document.getElementById('portal_url') ? document.getElementById('portal_url').value : '';
+        const aVal = document.getElementById('action_url') ? document.getElementById('action_url').value : '';
+        checkSuccessJspWarning(pVal, 'warn-portal-url');
+        checkSuccessJspWarning(aVal, 'warn-action-url');
+      }
+    }
+
+    function changeScenario(val) {
+      applyScenario(val);
+    }
+
     function applyLanguage(lang) {
       currentLang = lang === 'en' ? 'en' : 'zh';
       const t = I18N[currentLang];
       document.title = t.title;
       const elTitle = document.getElementById('txt-title'); if (elTitle) elTitle.innerText = t.title;
-      const elSub = document.getElementById('txt-subtitle'); if (elSub) elSub.innerText = t.subtitle;
       const elStatus = document.getElementById('header-status');
       if (elStatus) {
         elStatus.innerText = isSessionExpired ? t.timeout_status : t.status;
       }
+      const elOptC = document.getElementById('opt-scen-campus'); if (elOptC) elOptC.innerText = t.opt_scen_campus;
+      const elOptP = document.getElementById('opt-scen-public'); if (elOptP) elOptP.innerText = t.opt_scen_public;
+      const elOptU = document.getElementById('opt-scen-universal'); if (elOptU) elOptU.innerText = t.opt_scen_universal;
+
       const elTabB = document.getElementById('tab-browser-txt'); if (elTabB) elTabB.innerText = t.tab_browser;
       const elTabH = document.getElementById('tab-http-txt'); if (elTabH) elTabH.innerText = t.tab_http;
-      const elPortalLbl = document.getElementById('lbl-portal-url'); if (elPortalLbl) elPortalLbl.innerText = t.portal_label;
-      const elPortal = document.getElementById('portal_url'); if (elPortal) elPortal.placeholder = t.portal_ph;
-      const elBrowserHelp = document.getElementById('txt-browser-help'); if (elBrowserHelp) elBrowserHelp.innerHTML = t.browser_help;
-      const elActionLbl = document.getElementById('lbl-action-url'); if (elActionLbl) elActionLbl.innerText = t.action_label;
-      const elActionIn = document.getElementById('action_url'); if (elActionIn && t.action_ph) elActionIn.placeholder = t.action_ph;
-      const elUserLbl = document.getElementById('lbl-username'); if (elUserLbl) elUserLbl.innerText = t.username_label;
-      const elUser = document.getElementById('username'); if (elUser) elUser.placeholder = t.username_ph;
-      const elPassLbl = document.getElementById('lbl-password'); if (elPassLbl) elPassLbl.innerText = t.password_label;
-      const elPass = document.getElementById('password'); if (elPass) elPass.placeholder = t.password_ph;
       const elAdv = document.getElementById('txt-advanced-summary'); if (elAdv) elAdv.innerText = t.advanced_summary;
       const elCurlLbl = document.getElementById('lbl-curl-import'); if (elCurlLbl) elCurlLbl.innerText = t.curl_label;
       const elCurlIn = document.getElementById('curl-input'); if (elCurlIn) elCurlIn.placeholder = t.curl_ph;
@@ -1249,9 +1529,6 @@ My campus network information:
       const elFileTxt = document.getElementById('btn-file-txt'); if (elFileTxt) elFileTxt.innerText = t.btn_file;
       const elSaveTxt = document.getElementById('btn-save-txt'); if (elSaveTxt) elSaveTxt.innerText = t.btn_save;
 
-      const elBtnGuide = document.getElementById('btn-guide-txt'); if (elBtnGuide) elBtnGuide.innerText = t.btn_guide;
-      const elGuideTitle = document.getElementById('guide-modal-title'); if (elGuideTitle) elGuideTitle.innerText = t.guide_modal_title;
-      const elGuideBody = document.getElementById('guide-modal-body'); if (elGuideBody) elGuideBody.innerHTML = t.guide_content;
       const elCurlTipT = document.getElementById('txt-curl-tip-title'); if (elCurlTipT) elCurlTipT.innerText = t.curl_tip_title;
       const elCurlTipD = document.getElementById('txt-curl-tip-desc'); if (elCurlTipD) elCurlTipD.innerHTML = t.curl_tip_desc;
       const elOptPost = document.getElementById('opt-method-post'); if (elOptPost) elOptPost.innerText = t.opt_method_post;
@@ -1260,6 +1537,8 @@ My campus network information:
       const elTimeoutTitle = document.getElementById('txt-timeout-title'); if (elTimeoutTitle) elTimeoutTitle.innerText = t.timeout_title;
       const elTimeoutDesc = document.getElementById('txt-timeout-desc'); if (elTimeoutDesc) elTimeoutDesc.innerHTML = t.timeout_desc;
       const elBtnReconnect = document.getElementById('btn-reconnect-txt'); if (elBtnReconnect) elBtnReconnect.innerText = t.timeout_reconnect_btn;
+
+      applyScenario(activeScenario);
     }
 
     function changeLanguage(val) {
@@ -1294,6 +1573,12 @@ My campus network information:
       const effective = cfg.effective_language || (langConfig === 'auto' ? (navigator.language && navigator.language.startsWith('zh') ? 'zh' : 'en') : langConfig);
       applyLanguage(effective);
 
+      const scen = (cfg.general && cfg.general.scenario) || 'campus';
+      activeScenario = scen;
+      const elScen = document.getElementById('scenario-selector');
+      if (elScen) elScen.value = scen;
+      applyScenario(scen);
+
       const mode = (cfg.auth && cfg.auth.mode) || 'browser';
       switchMode(mode);
 
@@ -1324,12 +1609,16 @@ My campus network information:
 
       const elPortalIn = document.getElementById('portal_url');
       if (elPortalIn && !elPortalIn._hasWarnListener) {
-        elPortalIn.addEventListener('input', (e) => checkSuccessJspWarning(e.target.value, 'warn-portal-url'));
+        elPortalIn.addEventListener('input', (e) => {
+          if (activeScenario === 'campus') checkSuccessJspWarning(e.target.value, 'warn-portal-url');
+        });
         elPortalIn._hasWarnListener = true;
       }
       const elActionIn = document.getElementById('action_url');
       if (elActionIn && !elActionIn._hasWarnListener) {
-        elActionIn.addEventListener('input', (e) => checkSuccessJspWarning(e.target.value, 'warn-action-url'));
+        elActionIn.addEventListener('input', (e) => {
+          if (activeScenario === 'campus') checkSuccessJspWarning(e.target.value, 'warn-action-url');
+        });
         elActionIn._hasWarnListener = true;
       }
     }
@@ -1337,9 +1626,9 @@ My campus network information:
     function checkSuccessJspWarning(url, warnElId) {
       const el = document.getElementById(warnElId);
       if (!el) return;
-      if (url && url.includes('success.jsp')) {
+      if (activeScenario === 'campus' && url && url.includes('success.jsp')) {
         el.style.display = 'block';
-        el.innerHTML = '⚠️ <b>检测到包含 success.jsp（登录成功展示页）</b>：该地址内嵌了临时过期的内网 IP 与会话参数，直接访问会导致校园网报『原 IP 与当前用户不一致』。<br><b>💡 推荐做法</b>：请直接<b>留空</b>（NetTrigger 掉线时会全自动捕获带你最新 IP 的真实登录入口），或者填入校园网主页（如 <code>http://10.10.200.102/</code> 或 <code>http://123.123.123.123/</code>）。';
+        el.innerHTML = '⚠️ <b>检测到包含 success.jsp（登录成功展示页）</b>：该地址包含临时过期的内网 IP 与会话参数，直接访问可能导致校园网报『原 IP 与当前用户不一致』。<br><b>💡 推荐做法</b>：请直接<b>留空</b>（NetTrigger 掉线时会全自动捕获带你最新 IP 的真实登录入口），或者填入校园网主页。';
       } else {
         el.style.display = 'none';
       }
@@ -1385,7 +1674,6 @@ My campus network information:
       const text = document.getElementById('curl-input').value.trim();
       if (!text) return;
 
-      // 精准提取真实的 HTTP/HTTPS 目标 URL，彻底杜绝 --url、-X 等命令行参数被误当做 URL
       const urlMatch = text.match(/(https?:\/\/[^\s"']+)/i);
       if (urlMatch) {
         document.getElementById('action_url').value = urlMatch[1];
@@ -1437,6 +1725,7 @@ My campus network information:
     function collectPayload() {
       const payload = fullConfig || {};
       payload.general = payload.general || {};
+      payload.general.scenario = activeScenario;
       payload.general.profile = activeProfile;
       payload.general.silent_mode = document.getElementById('silent_mode').checked;
       const elLang = document.getElementById('lang-selector');
@@ -1586,7 +1875,7 @@ My campus network information:
           span.innerText = isEn ? '✅ Copied to Clipboard!' : '✅ 已复制到剪贴板！';
           setTimeout(() => { span.innerText = orig; }, 3000);
         }
-        showNotice(isEn ? 'AI Diagnostic Prompt copied to clipboard!' : '已成功复制求助 AI 专用 Prompt 到剪贴板！', 'success', 4000);
+        showNotice(isEn ? 'AI prompt copied to clipboard!' : '已成功复制求助 AI 提问词到剪贴板！', 'success', 4000);
       };
 
       if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -1620,11 +1909,12 @@ My campus network information:
       const modal = document.getElementById('guide-modal');
       if (modal) {
         modal.style.display = 'flex';
-        const t = I18N[currentLang];
+        const langObj = I18N[currentLang];
+        const s = (langObj.scenarios && langObj.scenarios[activeScenario]) || langObj.scenarios['campus'];
+        const elTitle = document.getElementById('guide-modal-title');
+        if (elTitle) elTitle.innerText = s.guide_modal_title;
         const elBody = document.getElementById('guide-modal-body');
-        if (elBody) {
-          elBody.innerHTML = t.guide_content;
-        }
+        if (elBody) elBody.innerHTML = s.guide_content;
       }
     }
 
@@ -1645,7 +1935,7 @@ My campus network information:
     });
   </script>
 
-  <!-- 校园网设置指南模态框 -->
+  <!-- 设置与指引模态框 -->
   <div id="guide-modal" class="modal-backdrop" style="display: none;" onclick="closeGuideModal(event)">
     <div class="modal-card" onclick="event.stopPropagation()">
       <div class="modal-header">
@@ -1654,7 +1944,7 @@ My campus network information:
             <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
             <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
           </svg>
-          <div class="modal-title" id="guide-modal-title">校园网设置与避坑指南</div>
+          <div class="modal-title" id="guide-modal-title">新手使用指南</div>
         </div>
         <button type="button" class="modal-close-btn" onclick="closeGuideModal()" title="关闭">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -1664,7 +1954,7 @@ My campus network information:
         </button>
       </div>
       <div class="modal-body" id="guide-modal-body">
-        <!-- 动态由 applyLanguage 渲染 -->
+        <!-- 动态由 applyScenario 渲染 -->
       </div>
     </div>
   </div>

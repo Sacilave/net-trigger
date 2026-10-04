@@ -41,7 +41,7 @@ pub const I18N_ZH: TrayI18n = TrayI18n {
     quit: "退出",
     status_online: "网络已连接",
     status_authenticating: "正在连接网络...",
-    status_captive_portal: "需要登录校园网，正在准备连接",
+    status_captive_portal: "网络需要登录，正在自动连接...",
     status_disconnected: "未连接到网络 (WiFi/网线未插)",
     status_backoff: "网络连接稍后重试...",
     status_initializing: "正在启动...",
