@@ -23,6 +23,10 @@ toml = "0.8"
 # Windows 原生轻量托盘支持
 tray-icon = "0.19"
 
+# 极简高精度数学运算 (用于锐捷 SAM+ RSA 密码加密，0 外部重依赖)
+num-bigint = { version = "0.4", default-features = false }
+num-traits = { version = "0.2", default-features = false }
+
 # Windows 原生 API 绑定 (细粒度按需引入)
 [dependencies.windows-sys]
 version = "0.59"

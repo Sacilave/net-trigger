@@ -297,8 +297,102 @@ pub fn get_fresh_ruijie_portal_url() -> Option<String> {
 /// 浏览器 JS 实际执行的是 encodeURIComponent(encodeURIComponent(qs))，
 /// 但因为 qs 内容本身只含 [a-zA-Z0-9&=] 和已编码的 hex，
 /// 两次 encodeURIComponent 的实际效果等价于：& → %2526, = → %253D，其余字符不变。
+#[allow(dead_code)]
 fn encode_ruijie_query_string(raw_qs: &str) -> String {
     raw_qs.replace('&', "%2526").replace('=', "%253D")
+}
+
+/// 从 URL 查询字符串中提取指定参数值
+fn extract_query_param(qs: &str, param_name: &str) -> Option<String> {
+    let prefix = format!("{}=", param_name);
+    for part in qs.split('&') {
+        if let Some(val) = part.strip_prefix(&prefix) {
+            return Some(val.to_string());
+        }
+    }
+    None
+}
+
+/// 锐捷 SAM+ 标准 RSA 算法加密密码
+///
+/// 遵循锐捷 security.js / login_bch.js 官方规范：
+/// 1. 待加密内容为：`password + ">" + mac`
+/// 2. 字符串反转：`(password + ">" + mac).chars().rev().collect()`
+/// 3. 分块按 16 位小端字打包为 BigUint：chunkSize = 2 * (digits - 1)
+/// 4. 模幂运算：`block.modpow(e, m)`
+/// 5. 按 16 位大端字格式化为十六进制串（每字 4 个 hex 字符）
+pub fn rsa_encrypt_ruijie(plain: &str, exponent_hex: &str, modulus_hex: &str) -> Option<String> {
+    use num_bigint::BigUint;
+    use num_traits::Num;
+
+    let e = BigUint::from_str_radix(exponent_hex, 16).ok()?;
+    let m = BigUint::from_str_radix(modulus_hex, 16).ok()?;
+
+    let m_bytes = m.to_bytes_be();
+    let num_digits_16 = (m_bytes.len() + 1) / 2;
+    let high_index = num_digits_16.saturating_sub(1);
+    let chunk_size = 2 * high_index;
+    if chunk_size == 0 {
+        return None;
+    }
+
+    let mut a: Vec<u8> = plain.bytes().collect();
+    while a.len() % chunk_size != 0 {
+        a.push(0);
+    }
+
+    let mut result = String::new();
+    for chunk in a.chunks(chunk_size) {
+        let block = BigUint::from_bytes_le(chunk);
+        let crypt = block.modpow(&e, &m);
+
+        let crypt_bytes = crypt.to_bytes_le();
+        let mut words_16 = Vec::with_capacity(num_digits_16);
+        for i in 0..num_digits_16 {
+            let low = crypt_bytes.get(2 * i).copied().unwrap_or(0) as u16;
+            let high = crypt_bytes.get(2 * i + 1).copied().unwrap_or(0) as u16;
+            words_16.push(low | (high << 8));
+        }
+
+        let mut hi = words_16.len().saturating_sub(1);
+        while hi > 0 && words_16[hi] == 0 {
+            hi -= 1;
+        }
+
+        let mut hex_chunk = String::new();
+        for i in (0..=hi).rev() {
+            use std::fmt::Write;
+            write!(&mut hex_chunk, "{:04x}", words_16[i]).ok();
+        }
+
+        if !result.is_empty() {
+            result.push(' ');
+        }
+        result.push_str(&hex_chunk);
+    }
+
+    Some(result)
+}
+
+/// 查询锐捷 SAM+ 网关页面配置（获取是否开启 RSA 密码加密及公钥指数和模数）
+fn fetch_ruijie_page_info(host: &str, port: u16, query_string: &str) -> Option<(String, String)> {
+    let mut headers = BTreeMap::new();
+    headers.insert("Content-Type".to_string(), "application/x-www-form-urlencoded; charset=UTF-8".to_string());
+    headers.insert("Referer".to_string(), format!("http://{}/eportal/index.jsp?{}", host, query_string));
+    headers.insert("Origin".to_string(), format!("http://{}", host));
+    headers.insert("Accept".to_string(), "application/json, text/javascript, */*; q=0.01".to_string());
+    headers.insert("X-Requested-With".to_string(), "XMLHttpRequest".to_string());
+    headers.insert("User-Agent".to_string(), "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36".to_string());
+
+    let body = format!("queryString={}", urlencoding_encode(query_string));
+    let resp = send_bound_http_post(host, port, "/eportal/InterFace.do?method=pageInfo", &body, &headers).ok()?;
+
+    if resp.contains("\"passwordEncrypt\":\"true\"") || resp.contains("\"passwordEncrypt\": \"true\"") {
+        let exp = extract_json_field(&resp, "publicKeyExponent").unwrap_or_else(|| "10001".to_string());
+        let modulus = extract_json_field(&resp, "publicKeyModulus")?;
+        return Some((exp, modulus));
+    }
+    None
 }
 
 /// 针对锐捷 RG-SAM+ / eportal 校园网的专属后台静默登录处理器
@@ -331,8 +425,6 @@ pub fn execute_ruijie_sam_auth(
     let mut query_string = String::new();
 
     // 核心策略：始终优先通过物理局域网网卡实时捕获当前 Wi-Fi 会话的最新 queryString
-    // 因为 queryString 中的 wlanuserip/nasip/mac 等参数是加密的会话级动态值，
-    // 每次 Wi-Fi 重连或 DHCP 重新分配后都会变化，静态缓存值必然导致"原ip与当前用户不一致"
     if let Some(fresh_qs) = get_fresh_ruijie_query_string() {
         query_string = fresh_qs;
     }
@@ -360,40 +452,67 @@ pub fn execute_ruijie_sam_auth(
         }
     }
 
+    let (host, port, path) = parse_url_components(action_url);
+
+    // 关键特性：智能识别网关是否开启了 RSA 密码加密，自动计算公钥密文
+    let (pwd_to_send, encrypt_flag) = if let Some((exp, modulus)) = fetch_ruijie_page_info(&host, port, &query_string) {
+        let mac_str = extract_query_param(&query_string, "mac").unwrap_or_else(|| "111111111".to_string());
+        let mac_str = if mac_str.is_empty() { "111111111".to_string() } else { mac_str };
+        let plain = format!("{}>{}", password, mac_str);
+        let reversed: String = plain.chars().rev().collect();
+        if let Some(encrypted) = rsa_encrypt_ruijie(&reversed, &exp, &modulus) {
+            (encrypted, "true".to_string())
+        } else {
+            (password.clone(), "false".to_string())
+        }
+    } else {
+        (password.clone(), "false".to_string())
+    };
+
     let service = params.get("service").cloned().unwrap_or_default();
     let operator_pwd = params.get("operatorPwd").cloned().unwrap_or_default();
     let operator_user_id = params.get("operatorUserId").cloned().unwrap_or_default();
     let validcode = params.get("validcode").cloned().unwrap_or_default();
-    let password_encrypt = params
-        .get("passwordEncrypt")
-        .cloned()
-        .unwrap_or_else(|| "false".to_string());
 
-    // 锐捷 SAM+ 的 queryString 必须进行专用编码：仅 & → %2526, = → %253D
-    let enc_query_string = encode_ruijie_query_string(&query_string);
+    // 锐捷官方规范：所有提交字段按 encodeURIComponent(encodeURIComponent(v)) 双重编码
+    let enc_username = urlencoding_encode(&urlencoding_encode(&username));
+    let enc_password = urlencoding_encode(&urlencoding_encode(&pwd_to_send));
+    let enc_service = urlencoding_encode(&urlencoding_encode(&service));
+    let enc_query_string = urlencoding_encode(&urlencoding_encode(&query_string));
+    let enc_operator_pwd = urlencoding_encode(&urlencoding_encode(&operator_pwd));
+    let enc_operator_user_id = urlencoding_encode(&urlencoding_encode(&operator_user_id));
+    let enc_validcode = urlencoding_encode(&urlencoding_encode(&validcode));
+    let enc_encrypt = urlencoding_encode(&urlencoding_encode(&encrypt_flag));
 
-    // userId 和 password 按锐捷协议原文发送（不做 URL 编码）
     let body = format!(
         "userId={}&password={}&service={}&queryString={}&operatorPwd={}&operatorUserId={}&validcode={}&passwordEncrypt={}",
-        username,
-        password,
-        urlencoding_encode(&service),
+        enc_username,
+        enc_password,
+        enc_service,
         enc_query_string,
-        urlencoding_encode(&operator_pwd),
-        urlencoding_encode(&operator_user_id),
-        urlencoding_encode(&validcode),
-        if password_encrypt == "true" { "true" } else { "false" }
+        enc_operator_pwd,
+        enc_operator_user_id,
+        enc_validcode,
+        enc_encrypt
     );
 
-    let (host, port, path) = parse_url_components(action_url);
+    // 关键特性：精确补全锐捷 ePortal 所需的浏览器级请求头（缺少 Referer 网关会直接拒绝认证）
+    let mut req_headers = headers.clone();
+    req_headers.insert("Content-Type".to_string(), "application/x-www-form-urlencoded; charset=UTF-8".to_string());
+    req_headers.insert("Referer".to_string(), format!("http://{}/eportal/index.jsp?{}", host, query_string));
+    req_headers.insert("Origin".to_string(), format!("http://{}", host));
+    req_headers.insert("Accept".to_string(), "application/json, text/javascript, */*; q=0.01".to_string());
+    req_headers.insert("X-Requested-With".to_string(), "XMLHttpRequest".to_string());
+    req_headers.entry("User-Agent".to_string()).or_insert_with(|| {
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36".to_string()
+    });
 
     // 优先采用显式绑定局域网物理网卡的专用 TCP 通道，杜绝双网卡冲突
-    let result = match send_bound_http_post(&host, port, &path, &body, headers) {
+    let result = match send_bound_http_post(&host, port, &path, &body, &req_headers) {
         Ok(resp_str) => parse_ruijie_response(&resp_str),
         Err(_err) => {
             // 原生 Socket 若失败，降级走 ureq
-            let fallback = execute_ruijie_sam_ureq_fallback(action_url, &body, headers);
-            return fallback;
+            execute_ruijie_sam_ureq_fallback(action_url, &body, &req_headers)
         }
     };
 
@@ -402,24 +521,10 @@ pub fn execute_ruijie_sam_auth(
     }
 
     // 自愈重试：若网关报"原ip与当前用户不一致"或"设备未注册"，说明 queryString 过期
-    // 强制清空并重新从局域网捕获最新的 queryString 后重试一次
     if result.message.contains("原ip") || result.message.contains("设备未注册") || result.message.contains("queryString") || result.message.contains("参数") || result.message.contains("为空") {
         if let Some(retry_qs) = get_fresh_ruijie_query_string() {
             if retry_qs != query_string {
-                let retry_enc_qs = encode_ruijie_query_string(&retry_qs);
-                let retry_body = format!(
-                    "userId={}&password={}&service={}&queryString={}&operatorPwd={}&operatorUserId={}&validcode={}&passwordEncrypt={}",
-                    username, password, urlencoding_encode(&service), retry_enc_qs,
-                    urlencoding_encode(&operator_pwd), urlencoding_encode(&operator_user_id),
-                    urlencoding_encode(&validcode),
-                    if password_encrypt == "true" { "true" } else { "false" }
-                );
-                if let Ok(retry_resp) = send_bound_http_post(&host, port, &path, &retry_body, headers) {
-                    let retry_result = parse_ruijie_response(&retry_resp);
-                    if retry_result.success {
-                        return retry_result;
-                    }
-                }
+                return execute_ruijie_sam_auth(action_url, params, headers);
             }
         }
     }
@@ -765,5 +870,17 @@ mod tests {
         assert_eq!(enc, "wlanuserip%253D1.2.3.4%2526wlanacname%253Dtest");
         assert!(enc.contains("%253D"));
         assert!(enc.contains("%2526"));
+    }
+
+    #[test]
+    fn test_ruijie_rsa_encryption() {
+        let plain = "78c0c92a0ae8d1ddbc96ebb09223ddbc>516382";
+        let exp = "10001";
+        let modulus = "94dd2a8675fb779e6b9f7103698634cd400f27a154afa67af6166a43fc26417222a79506d34cacc7641946abda1785b7acf9910ad6a0978c91ec84d40b71d2891379af19ffb333e7517e390bd26ac312fe940c340466b4a5d4af1d65c3b5944078f96a1a51a5a53e4bc302818b7c9f63c4a1b07bd7d874cef1c3d4b2f5eb7871";
+        let encrypted = rsa_encrypt_ruijie(plain, exp, modulus).expect("encrypt");
+        assert_eq!(
+            encrypted,
+            "7ac89527f83a1bd9ca95b6f9641987957a97f6c61f5a72d18181b9d3218a55d805699959af98fb9f1e4b7bf74aaa861f75917a4d84365db9caabb92fd6508666ad7f7692769c1d6341a4bb493ce71eb4538e398c33c9e7437afd58b3cb0bf8951020ce245499dc0725c242e77b9e59e6111970dbf3804126c6c1fb438dd43e55"
+        );
     }
 }
