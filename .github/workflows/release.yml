@@ -42,13 +42,20 @@ jobs:
           Copy-Item "installer/ChineseSimplified.isl" -Destination "C:\Program Files (x86)\Inno Setup 6\Languages\ChineseSimplified.isl" -Force
 
       - name: 构建一键 Windows 安装包 (x64 Setup.exe)
-        run: iscc installer/NetTrigger.iss
+        shell: pwsh
+        run: |
+          $version = "${{ github.ref_name }}"
+          if (-not $version.StartsWith("v")) {
+            $version = "v" + ((Get-Content Cargo.toml | Select-String 'version = "([^"]+)"').Matches.Groups[1].Value)
+          }
+          $verNum = $version.TrimStart("v")
+          iscc "/DMyAppVersion=$verNum" installer/NetTrigger.iss
 
       - name: 整理发布产物与生成校验和
         id: package
         shell: pwsh
         run: |
-          # 1. 获取版本号（优先从 git tag 获取，例如 v1.1.0；若 dispatch 则从 Cargo.toml 取）
+          # 1. 获取版本号（优先从 git tag 获取，例如 v1.2.3；若 dispatch 则从 Cargo.toml 取）
           $version = "${{ github.ref_name }}"
           if (-not $version.StartsWith("v")) {
             $version = "v" + ((Get-Content Cargo.toml | Select-String 'version = "([^"]+)"').Matches.Groups[1].Value)
@@ -58,11 +65,10 @@ jobs:
           $distDir = "dist"
           New-Item -ItemType Directory -Force -Path $distDir | Out-Null
           
-          # 3. 复制 x64 产物并打包
+          # 3. 复制 x64 产物并打包 (纯规范命名，不再生成无版本号重复副本)
           $x64Exe = "NetTrigger-${version}-windows-x64.exe"
           $x64Zip = "NetTrigger-${version}-windows-x64-portable.zip"
           Copy-Item "target/x86_64-pc-windows-msvc/release/NetTrigger.exe" -Destination $x64Exe
-          Copy-Item "target/x86_64-pc-windows-msvc/release/NetTrigger.exe" -Destination "NetTrigger.exe"
           
           $x64TempDir = "temp_x64"
           New-Item -ItemType Directory -Force -Path $x64TempDir | Out-Null
@@ -70,7 +76,6 @@ jobs:
           Copy-Item "config.example.toml" -Destination "$x64TempDir/config.example.toml"
           Copy-Item "README.md" -Destination "$x64TempDir/README.md"
           Compress-Archive -Path "$x64TempDir/*" -DestinationPath $x64Zip -Force
-          Copy-Item $x64Zip -Destination "NetTrigger-windows-x64-portable.zip"
           
           # 4. 复制 x86 (32位) 产物并打包
           $x86Exe = "NetTrigger-${version}-windows-x86.exe"
@@ -86,12 +91,8 @@ jobs:
           
           # 5. 获取安装包文件名 (x64)
           $setupExeItem = Get-ChildItem -Path $distDir -Filter "*Setup.exe" | Select-Object -First 1
-          if ($setupExeItem) {
-            $setupExe = $setupExeItem.Name
-            Copy-Item "$distDir/$setupExe" -Destination "$distDir/NetTrigger-Setup.exe" -Force
-          }
           
-          # 6. 生成所有产物的 SHA256 校验和
+          # 6. 生成所有规范产物的 SHA256 校验和
           $x64ExeHash = (Get-FileHash $x64Exe -Algorithm SHA256).Hash
           $x64ZipHash = (Get-FileHash $x64Zip -Algorithm SHA256).Hash
           $x86ExeHash = (Get-FileHash $x86Exe -Algorithm SHA256).Hash
@@ -104,17 +105,14 @@ jobs:
             "$x86ZipHash  $x86Zip"
           )
           if ($setupExeItem) {
+            $setupExe = $setupExeItem.Name
             $setupHash = (Get-FileHash "$distDir/$setupExe" -Algorithm SHA256).Hash
-            $hashes += "$setupHash  $setupExe"
+            $hashes = @("$setupHash  $setupExe") + $hashes
           }
           $hashes | Set-Content -Path "checksums.txt"
           
-          Write-Host "打包成功:"
-          if ($setupExeItem) { Write-Host "$setupExe SHA256: $setupHash" }
-          Write-Host "$x64Exe SHA256: $x64ExeHash"
-          Write-Host "$x64Zip SHA256: $x64ZipHash"
-          Write-Host "$x86Exe SHA256: $x86ExeHash"
-          Write-Host "$x86Zip SHA256: $x86ZipHash"
+          Write-Host "打包成功，产物清单与 SHA256 如下:"
+          Get-Content "checksums.txt"
 
       - name: 创建 GitHub Release 并上传附件
         uses: softprops/action-gh-release@v2
@@ -125,11 +123,9 @@ jobs:
           prerelease: false
           generate_release_notes: true
           files: |
-            dist/*Setup.exe
-            NetTrigger-v*-windows-x64.exe
-            NetTrigger-v*-windows-x64-portable.zip
-            NetTrigger-v*-windows-x86.exe
-            NetTrigger-v*-windows-x86-portable.zip
-            NetTrigger.exe
-            NetTrigger-windows-x64-portable.zip
+            dist/NetTrigger-*-Setup.exe
+            NetTrigger-*-windows-x64.exe
+            NetTrigger-*-windows-x64-portable.zip
+            NetTrigger-*-windows-x86.exe
+            NetTrigger-*-windows-x86-portable.zip
             checksums.txt

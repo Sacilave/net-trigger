@@ -140,3 +140,8 @@ strip = true        # 剥离所有调试符号
 - [ ] **开机自启隔离**：注册表项写入的是带双引号的完整绝对路径 `\"C:\\path\\to\\NetTrigger.exe\"`。
 - [ ] **静态资源嵌入**：托盘的默认图标可通过 `include_bytes!` 静态嵌入二进制，即使外部缺少 `.ico` 也能安全自愈运行。
 - [ ] **Git 身份合规**：所有提交必须以 `Sacilave <sacilave@gmail.com>` 签署，严禁关联旧仓库。
+- [ ] **版本发布与文档全量同步**：每次发布新版本（Release）时，必须同步更新以下全链路要素：
+  1. `Cargo.toml` 中的 `version = "x.y.z"`；
+  2. `installer/NetTrigger.iss` 中的默认版本号；
+  3. `README.md` 与 `README_EN.md` 中的 Release 徽标及下载表格直链（确保用户点击直链下载到当前最新版）；
+  4. 产物命名统一采用规范格式（`NetTrigger-vX.Y.Z-...`），严禁上传未带版本号的重复副本避免用户混淆。
