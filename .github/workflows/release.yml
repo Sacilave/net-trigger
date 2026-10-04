@@ -45,34 +45,47 @@ jobs:
         id: package
         shell: pwsh
         run: |
-          # 1. 确保产物目录
+          # 1. 获取版本号（优先从 git tag 获取，例如 v1.1.0；若 dispatch 则从 Cargo.toml 取）
+          $version = "${{ github.ref_name }}"
+          if (-not $version.StartsWith("v")) {
+            $version = "v" + ((Get-Content Cargo.toml | Select-String 'version = "([^"]+)"').Matches.Groups[1].Value)
+          }
+          
+          # 2. 确保产物目录
           $distDir = "dist"
           New-Item -ItemType Directory -Force -Path $distDir | Out-Null
           
-          # 2. 复制核心可执行程序与配置模板
+          # 3. 复制核心可执行程序与配置模板
           Copy-Item "target/release/NetTrigger.exe" -Destination "$distDir/NetTrigger.exe"
           Copy-Item "config.example.toml" -Destination "$distDir/config.example.toml"
           Copy-Item "README.md" -Destination "$distDir/README.md"
           
-          # 3. 压缩为便携 Zip 压缩包（仅含绿色便携文件）
-          $zipName = "NetTrigger-windows-x64-portable.zip"
+          # 4. 压缩为便携 Zip 压缩包（命名带版本号）
+          $zipName = "NetTrigger-${version}-windows-x64-portable.zip"
           Compress-Archive -Path "$distDir/NetTrigger.exe", "$distDir/config.example.toml", "$distDir/README.md" -DestinationPath $zipName -Force
           
-          # 4. 生成所有产物的 SHA256 校验和
-          $setupHash = (Get-FileHash "$distDir/NetTrigger-Setup.exe" -Algorithm SHA256).Hash
-          $exeHash = (Get-FileHash "$distDir/NetTrigger.exe" -Algorithm SHA256).Hash
+          # 5. 单独的绿色单文件可执行程序重命名为带版本号的独立产物
+          $standaloneExe = "NetTrigger-${version}-windows-x64.exe"
+          Copy-Item "target/release/NetTrigger.exe" -Destination $standaloneExe
+          
+          # 6. 获取安装包文件名
+          $setupExe = (Get-ChildItem -Path $distDir -Filter "*Setup.exe" | Select-Object -First 1).Name
+          
+          # 7. 生成所有产物的 SHA256 校验和
+          $setupHash = (Get-FileHash "$distDir/$setupExe" -Algorithm SHA256).Hash
+          $exeHash = (Get-FileHash $standaloneExe -Algorithm SHA256).Hash
           $zipHash = (Get-FileHash $zipName -Algorithm SHA256).Hash
           
           $checksumContent = @"
-          $setupHash  NetTrigger-Setup.exe
-          $exeHash  NetTrigger.exe
+          $setupHash  $setupExe
+          $exeHash  $standaloneExe
           $zipHash  $zipName
           "@
           Set-Content -Path "checksums.txt" -Value $checksumContent
           
           Write-Host "打包成功:"
-          Write-Host "NetTrigger-Setup.exe SHA256: $setupHash"
-          Write-Host "NetTrigger.exe SHA256: $exeHash"
+          Write-Host "$setupExe SHA256: $setupHash"
+          Write-Host "$standaloneExe SHA256: $exeHash"
           Write-Host "$zipName SHA256: $zipHash"
 
       - name: 创建 GitHub Release 并上传附件
@@ -84,7 +97,7 @@ jobs:
           prerelease: false
           generate_release_notes: true
           files: |
-            dist/NetTrigger-Setup.exe
-            target/release/NetTrigger.exe
-            NetTrigger-windows-x64-portable.zip
+            dist/*Setup.exe
+            NetTrigger-v*-windows-x64.exe
+            NetTrigger-v*-windows-x64-portable.zip
             checksums.txt
