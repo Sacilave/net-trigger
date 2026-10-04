@@ -16,6 +16,8 @@ pub struct AuthResult {
     pub success: bool,
     pub status_code: u16,
     pub message: String,
+    pub stage_code: &'static str,
+    pub suggestion: String,
 }
 
 impl AuthResult {
@@ -24,6 +26,8 @@ impl AuthResult {
             success: true,
             status_code,
             message,
+            stage_code: "OK",
+            suggestion: String::new(),
         }
     }
 
@@ -32,6 +36,23 @@ impl AuthResult {
             success: false,
             status_code,
             message,
+            stage_code: "FAIL",
+            suggestion: String::new(),
+        }
+    }
+
+    pub fn fail_with_stage(
+        status_code: u16,
+        message: String,
+        stage_code: &'static str,
+        suggestion: String,
+    ) -> Self {
+        Self {
+            success: false,
+            status_code,
+            message,
+            stage_code,
+            suggestion,
         }
     }
 }
@@ -47,9 +68,11 @@ pub fn execute_http_auth(
         || clean_url == "--url"
         || (!clean_url.starts_with("http://") && !clean_url.starts_with("https://"))
     {
-        return AuthResult::fail(
+        return AuthResult::fail_with_stage(
             400,
-            "登录接口网址 (action_url) 格式无效！请在设置中填入有效的 http:// 认证地址".to_string(),
+            "登录接口网址 (action_url) 格式无效！".to_string(),
+            "E4-01",
+            "请在设置中填入有效的 http:// 或 https:// 认证地址".to_string(),
         );
     }
 
@@ -108,7 +131,12 @@ pub fn execute_http_auth(
             let json_body = match serde_json_to_string(params) {
                 Ok(s) => s,
                 Err(err) => {
-                    return AuthResult::fail(400, format!("参数序列化 JSON 失败: {}", err));
+                    return AuthResult::fail_with_stage(
+                        400,
+                        format!("参数序列化 JSON 失败: {}", err),
+                        "E4-01",
+                        "请检查自定义参数格式是否符合 JSON 规范".to_string(),
+                    );
                 }
             };
             req.send_string(&json_body)
@@ -149,7 +177,8 @@ pub fn execute_http_auth(
                 || snippet_lower.contains("原ip与当前用户不一致")
                 || snippet_lower.contains("设备未注册")
             {
-                AuthResult::fail(code, format!("网关拒绝认证: {}", snippet.trim()))
+                let (stage, sug) = classify_ruijie_error(&snippet);
+                AuthResult::fail_with_stage(code, format!("网关拒绝认证: {}", snippet.trim()), stage, sug)
             } else {
                 AuthResult::ok(code, format!("认证报文发送成功 (HTTP {})", code))
             }
@@ -159,10 +188,20 @@ pub fn execute_http_auth(
             let mut reader = response.into_reader().take(512);
             let n = reader.read(&mut buf).unwrap_or(0);
             let snippet = String::from_utf8_lossy(&buf[..n]);
-            AuthResult::fail(code, format!("网关返回 HTTP {} 错误: {}", code, snippet.trim()))
+            AuthResult::fail_with_stage(
+                code,
+                format!("网关返回 HTTP {} 错误: {}", code, snippet.trim()),
+                "E5-02",
+                "认证服务器返回异常，服务器系统可能在维护或接口路径错误。".to_string(),
+            )
         }
         Err(ureq::Error::Transport(transport_err)) => {
-            AuthResult::fail(0, format!("认证网络传输失败: {}", transport_err))
+            AuthResult::fail_with_stage(
+                0,
+                format!("认证网络传输失败: {}", transport_err),
+                "E3-01",
+                "无法连接到认证服务器，请检查 Wi-Fi 连接或本地局域网路由。".to_string(),
+            )
         }
     }
 }
@@ -408,17 +447,21 @@ pub fn execute_ruijie_sam_auth(
         .unwrap_or_default();
 
     if username.trim().is_empty() || username.contains("your_student_id") {
-        return AuthResult::fail(
+        return AuthResult::fail_with_stage(
             400,
-            "未配置校园网学号/账号！请右键托盘图标【设置】填入学号和密码即可静默登录。".to_string(),
+            "未配置校园网学号/账号！".to_string(),
+            "E4-01",
+            "请右键托盘图标【设置】填入学号和密码即可静默登录。".to_string(),
         );
     }
 
     let password = params.get("password").cloned().unwrap_or_default();
     if password.trim().is_empty() || password.contains("your_password") {
-        return AuthResult::fail(
+        return AuthResult::fail_with_stage(
             400,
-            "未配置校园网密码！请右键托盘图标【设置】填入密码即可开启后台秒连。".to_string(),
+            "未配置校园网密码！".to_string(),
+            "E4-01",
+            "请右键托盘图标【设置】填入密码即可开启后台秒连。".to_string(),
         );
     }
 
@@ -450,6 +493,15 @@ pub fn execute_ruijie_sam_auth(
                 query_string = qs.to_string();
             }
         }
+    }
+
+    if query_string.is_empty() {
+        return AuthResult::fail_with_stage(
+            400,
+            "无法获取校园网认证参数 (queryString 为空)".to_string(),
+            "E2-02",
+            "未能从 Wi-Fi 网络捕获到 wlanuserip 会话参数。请确认已连接 usywireless 校园网热点。".to_string(),
+        );
     }
 
     let (host, port, path) = parse_url_components(action_url);
@@ -510,9 +562,19 @@ pub fn execute_ruijie_sam_auth(
     // 优先采用显式绑定局域网物理网卡的专用 TCP 通道，杜绝双网卡冲突
     let result = match send_bound_http_post(&host, port, &path, &body, &req_headers) {
         Ok(resp_str) => parse_ruijie_response(&resp_str),
-        Err(_err) => {
+        Err(err) => {
             // 原生 Socket 若失败，降级走 ureq
-            execute_ruijie_sam_ureq_fallback(action_url, &body, &req_headers)
+            let ureq_res = execute_ruijie_sam_ureq_fallback(action_url, &body, &req_headers);
+            if !ureq_res.success && ureq_res.status_code == 0 {
+                AuthResult::fail_with_stage(
+                    0,
+                    format!("网关不可达 ({}:{})", host, port),
+                    "E3-01",
+                    format!("无法与校园网认证服务器 ({}:{}) 建立 TCP 连接：{}。请检查 Wi-Fi 是否连接正常。", host, port, err),
+                )
+            } else {
+                ureq_res
+            }
         }
     };
 
@@ -532,6 +594,52 @@ pub fn execute_ruijie_sam_auth(
     result
 }
 
+/// 锐捷 SAM+ 错误信息细粒度归类与排障建议映射
+pub fn classify_ruijie_error(msg: &str) -> (&'static str, String) {
+    let lower = msg.to_lowercase();
+    if lower.contains("密码错误")
+        || lower.contains("用户不存在")
+        || lower.contains("password")
+        || lower.contains("err_pwd")
+        || lower.contains("密码不正确")
+    {
+        (
+            "E5-01",
+            "请核对学号与密码是否完全正确（注意大小写）。若曾修改过密码，请在设置中更新。".to_string(),
+        )
+    } else if lower.contains("原ip") || lower.contains("ip与当前用户不一致") {
+        (
+            "E5-01",
+            "校园网会话 IP 与认证参数不一致。NetTrigger 会自动重新捕获最新会话参数，或可尝试重新连接 Wi-Fi。".to_string(),
+        )
+    } else if lower.contains("超限") || lower.contains("数量超限") || lower.contains("max") {
+        (
+            "E5-01",
+            "该学号当前在线设备数量已达上限。请在手机或其他已登录设备上注销下线，或登录自服务系统踢出旧设备。".to_string(),
+        )
+    } else if lower.contains("欠费") || lower.contains("余额不足") || lower.contains("停机") || lower.contains("arrear") {
+        (
+            "E5-01",
+            "校园网账号可能欠费或停机。请登录校园网统一结算门户或自服务系统查询充值。".to_string(),
+        )
+    } else if lower.contains("设备未注册") || lower.contains("mac") || lower.contains("绑定") {
+        (
+            "E5-01",
+            "网关提示该设备或 MAC 地址未绑定。请登录校园网自服务门户完成设备绑定，或联系网络中心。".to_string(),
+        )
+    } else if lower.contains("验证码") || lower.contains("validcode") {
+        (
+            "E5-01",
+            "网关当前开启了图形验证码校验。静默后台登录不支持输入验证码，请切换为【自动打开网页登录】模式。".to_string(),
+        )
+    } else {
+        (
+            "E5-01",
+            format!("网关返回报错：{}。请根据提示在【设置】中核对配置或联系校园网管理员。", msg),
+        )
+    }
+}
+
 /// 解析锐捷 SAM+ 网关响应 JSON
 fn parse_ruijie_response(resp_str: &str) -> AuthResult {
     if resp_str.contains("\"result\":\"success\"")
@@ -542,10 +650,24 @@ fn parse_ruijie_response(resp_str: &str) -> AuthResult {
         AuthResult::ok(200, "锐捷 SAM+ 校园网后台静默登录成功！".to_string())
     } else if resp_str.contains("\"result\":\"fail\"")
         || resp_str.contains("\"result\": \"fail\"")
+        || resp_str.contains("\"result\":\"error\"")
     {
-        let err_msg = extract_json_field(resp_str, "message")
+        let raw_msg = extract_json_field(resp_str, "message")
             .unwrap_or_else(|| "认证失败，请检查账号密码".to_string());
-        AuthResult::fail(200, format!("网关拒绝登录: {}", err_msg))
+        let (stage_code, suggestion) = classify_ruijie_error(&raw_msg);
+        AuthResult::fail_with_stage(
+            200,
+            format!("网关拒绝登录: {}", raw_msg),
+            stage_code,
+            suggestion,
+        )
+    } else if resp_str.contains("HTTP/1.1 500") || resp_str.contains("HTTP/1.1 502") || resp_str.contains("HTTP/1.1 503") {
+        AuthResult::fail_with_stage(
+            500,
+            "网关服务器返回 5xx 异常".to_string(),
+            "E5-02",
+            "校园网认证服务器内部错误，学校 SAM+ 系统可能在维护中，稍后将自动重试。".to_string(),
+        )
     } else {
         AuthResult::ok(200, "认证报文已发送".to_string())
     }
@@ -574,20 +696,14 @@ fn execute_ruijie_sam_ureq_fallback(
             let mut reader = response.into_reader().take(1024);
             let n = reader.read(&mut buf).unwrap_or(0);
             let snippet = String::from_utf8_lossy(&buf[..n]);
-            if snippet.contains("\"result\":\"success\"")
-                || snippet.contains("\"result\": \"success\"")
-                || snippet.contains("用户在线")
-                || snippet.contains("已在线")
-            {
-                AuthResult::ok(200, "锐捷 SAM+ 校园网静默登录成功 (备用通道)".to_string())
-            } else if snippet.contains("\"result\":\"fail\"") || snippet.contains("\"result\": \"fail\"") {
-                let err_msg = extract_json_field(&snippet, "message").unwrap_or_else(|| "认证失败".to_string());
-                AuthResult::fail(200, format!("网关拒绝登录: {}", err_msg))
-            } else {
-                AuthResult::ok(200, "认证报文已发送".to_string())
-            }
+            parse_ruijie_response(&snippet)
         }
-        Err(err) => AuthResult::fail(0, format!("网关网络请求失败: {}", err)),
+        Err(err) => AuthResult::fail_with_stage(
+            0,
+            format!("网关网络请求失败: {}", err),
+            "E3-01",
+            "无法连接认证服务器，局域网连接可能不稳定。".to_string(),
+        ),
     }
 }
 
@@ -851,7 +967,7 @@ mod tests {
     #[test]
     fn test_ruijie_sam_empty_credentials() {
         let mut params = BTreeMap::new();
-        params.insert("userId".to_string(), "2311611043".to_string());
+        params.insert("userId".to_string(), "2023000001".to_string());
         // No password
         let res = execute_ruijie_sam_auth("http://10.10.200.102/eportal/InterFace.do?method=login", &params, &BTreeMap::new());
         assert!(!res.success);

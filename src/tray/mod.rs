@@ -18,6 +18,7 @@ use tray_icon::{Icon, MouseButton, MouseButtonState, TrayIcon, TrayIconBuilder, 
 pub struct TrayI18n {
     pub manual_check: &'static str,
     pub open_portal: &'static str,
+    pub diagnostic_report: &'static str,
     pub settings: &'static str,
     pub autostart: &'static str,
     pub silent_mode: &'static str,
@@ -35,6 +36,7 @@ pub struct TrayI18n {
 pub const I18N_ZH: TrayI18n = TrayI18n {
     manual_check: "立即重连",
     open_portal: "打开登录网页",
+    diagnostic_report: "网络排障诊断报告",
     settings: "设置",
     autostart: "开机自启动",
     silent_mode: "静默模式 (免打扰)",
@@ -52,6 +54,7 @@ pub const I18N_ZH: TrayI18n = TrayI18n {
 pub const I18N_EN: TrayI18n = TrayI18n {
     manual_check: "Reconnect Now",
     open_portal: "Open Login Portal",
+    diagnostic_report: "Diagnostic Report",
     settings: "Settings",
     autostart: "Start on Boot",
     silent_mode: "Silent Mode (Do Not Disturb)",
@@ -84,6 +87,7 @@ impl TrayI18n {
 pub enum TrayAction {
     ManualCheck,
     OpenPortal,
+    OpenDiagnosticReport,
     OpenWebConfig,
     ToggleAutostart,
     ToggleSilentMode,
@@ -98,6 +102,7 @@ pub struct SystemTrayManager {
     silent_item: CheckMenuItem,
     item_manual_check: MenuItem,
     item_open_portal: MenuItem,
+    item_diagnostic_report: MenuItem,
     item_open_web_config: MenuItem,
     item_lang_auto: CheckMenuItem,
     item_lang_en: CheckMenuItem,
@@ -106,6 +111,7 @@ pub struct SystemTrayManager {
     language: Language,
     last_state: NetworkState,
     last_latency_ms: u64,
+    last_message: String,
 }
 
 impl SystemTrayManager {
@@ -116,6 +122,7 @@ impl SystemTrayManager {
 
         let item_manual_check = MenuItem::new(i18n.manual_check, true, None);
         let item_open_portal = MenuItem::new(i18n.open_portal, true, None);
+        let item_diagnostic_report = MenuItem::new(i18n.diagnostic_report, true, None);
         let item_open_web_config = MenuItem::new(i18n.settings, true, None);
 
         // 原生二级语言子菜单：常驻 "Language / 语言"，保证任何语言用户第一眼即可辨识
@@ -137,6 +144,7 @@ impl SystemTrayManager {
         // 组装极简无冗余的上下文菜单
         let _ = menu.append(&item_manual_check);
         let _ = menu.append(&item_open_portal);
+        let _ = menu.append(&item_diagnostic_report);
         let _ = menu.append(&PredefinedMenuItem::separator());
         let _ = menu.append(&item_open_web_config);
         let _ = menu.append(&lang_submenu);
@@ -174,6 +182,7 @@ impl SystemTrayManager {
             silent_item,
             item_manual_check,
             item_open_portal,
+            item_diagnostic_report,
             item_open_web_config,
             item_lang_auto,
             item_lang_en,
@@ -182,6 +191,7 @@ impl SystemTrayManager {
             language: lang,
             last_state: NetworkState::Initializing,
             last_latency_ms: 0,
+            last_message: String::new(),
         })
     }
 
@@ -195,17 +205,20 @@ impl SystemTrayManager {
         let i18n = TrayI18n::get(lang);
         self.item_manual_check.set_text(i18n.manual_check);
         self.item_open_portal.set_text(i18n.open_portal);
+        self.item_diagnostic_report.set_text(i18n.diagnostic_report);
         self.item_open_web_config.set_text(i18n.settings);
         self.autostart_item.set_text(i18n.autostart);
         self.silent_item.set_text(i18n.silent_mode);
         self.item_quit.set_text(i18n.quit);
-        self.update_state(self.last_state, self.last_latency_ms, app_name);
+        let msg = self.last_message.clone();
+        self.update_state(self.last_state, self.last_latency_ms, &msg, app_name);
     }
 
-    /// 更新托盘状态与图标色彩
-    pub fn update_state(&mut self, state: NetworkState, latency_ms: u64, app_name: &str) {
+    /// 更新托盘状态与图标色彩，并根据细粒度状态实时更新气泡提示
+    pub fn update_state(&mut self, state: NetworkState, latency_ms: u64, last_message: &str, app_name: &str) {
         self.last_state = state;
         self.last_latency_ms = latency_ms;
+        self.last_message = last_message.to_string();
         if let Ok(icon) = generate_color_icon(state) {
             let _ = self.tray_icon.set_icon(Some(icon));
         }
@@ -219,23 +232,48 @@ impl SystemTrayManager {
                 )
             }
             NetworkState::Authenticating => {
-                format!("{} - {}", app_name, i18n.status_authenticating)
+                if !last_message.is_empty() {
+                    format!("{} - 🟡 {}", app_name, last_message)
+                } else {
+                    format!("{} - {}", app_name, i18n.status_authenticating)
+                }
             }
             NetworkState::CaptivePortal => {
-                format!("{} - {}", app_name, i18n.status_captive_portal)
+                if !last_message.is_empty() {
+                    format!("{} - 🟡 {}", app_name, last_message)
+                } else {
+                    format!("{} - {}", app_name, i18n.status_captive_portal)
+                }
             }
             NetworkState::Disconnected => {
-                format!("{} - {}", app_name, i18n.status_disconnected)
+                if !last_message.is_empty() {
+                    format!("{} - 🔴 {}", app_name, last_message)
+                } else {
+                    format!("{} - {}", app_name, i18n.status_disconnected)
+                }
             }
             NetworkState::BackoffWait => {
-                format!("{} - {}", app_name, i18n.status_backoff)
+                if !last_message.is_empty() {
+                    format!("{} - 🔴 {}", app_name, last_message)
+                } else {
+                    format!("{} - {}", app_name, i18n.status_backoff)
+                }
             }
             NetworkState::Initializing => {
                 format!("{} - {}", app_name, i18n.status_initializing)
             }
         };
 
-        let _ = self.tray_icon.set_tooltip(Some(tooltip));
+        // 限制在 Windows NOTIFYICONDATA 127 字符安全上限内，防止系统截断乱码
+        let clamped_tooltip = if tooltip.chars().count() > 120 {
+            let mut t: String = tooltip.chars().take(117).collect();
+            t.push_str("...");
+            t
+        } else {
+            tooltip
+        };
+
+        let _ = self.tray_icon.set_tooltip(Some(clamped_tooltip));
     }
 
     /// 轮询托盘交互事件（非阻塞）
@@ -264,6 +302,8 @@ impl SystemTrayManager {
                 return Some(TrayAction::ManualCheck);
             } else if event.id == self.item_open_portal.id() {
                 return Some(TrayAction::OpenPortal);
+            } else if event.id == self.item_diagnostic_report.id() {
+                return Some(TrayAction::OpenDiagnosticReport);
             } else if event.id == self.item_open_web_config.id() {
                 return Some(TrayAction::OpenWebConfig);
             } else if event.id == self.item_lang_auto.id() {
@@ -352,10 +392,12 @@ mod tests {
         let zh = TrayI18n::get(Language::Zh);
         assert_eq!(zh.settings, "设置");
         assert_eq!(zh.manual_check, "立即重连");
+        assert_eq!(zh.diagnostic_report, "网络排障诊断报告");
 
         let en = TrayI18n::get(Language::En);
         assert_eq!(en.settings, "Settings");
         assert_eq!(en.manual_check, "Reconnect Now");
+        assert_eq!(en.diagnostic_report, "Diagnostic Report");
     }
 
 }

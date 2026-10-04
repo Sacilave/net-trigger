@@ -229,10 +229,12 @@ fn handle_http_client(
             if let Ok(temp_cfg) = parse_result {
                 let auth_res: AuthResult = crate::auth::AuthExecutor::execute(&temp_cfg, None);
                 let result_json = format!(
-                    "{{\"success\":{},\"status_code\":{},\"message\":\"{}\"}}",
+                    "{{\"success\":{},\"status_code\":{},\"stage_code\":\"{}\",\"message\":\"{}\",\"suggestion\":\"{}\"}}",
                     auth_res.success,
                     auth_res.status_code,
-                    escape_json_str(&auth_res.message)
+                    auth_res.stage_code,
+                    escape_json_str(&auth_res.message),
+                    escape_json_str(&auth_res.suggestion)
                 );
                 let resp = format!(
                     "HTTP/1.1 200 OK\r\nContent-Type: application/json; charset=utf-8\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
@@ -243,9 +245,9 @@ fn handle_http_client(
                 return;
             }
         }
-        let resp_body = "{\"success\":false,\"status_code\":0,\"message\":\"无法解析测试数据\"}";
+        let resp_body = "{\"success\":false,\"status_code\":0,\"stage_code\":\"E4-01\",\"message\":\"无法解析测试数据\",\"suggestion\":\"请核对配置数据格式\"}";
         let resp = format!(
-            "HTTP/1.1 400 Bad Request\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+            "HTTP/1.1 400 Bad Request\r\nContent-Type: application/json; charset=utf-8\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
             resp_body.len(),
             resp_body
         );

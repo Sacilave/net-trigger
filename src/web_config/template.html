@@ -1745,7 +1745,7 @@ Login information:
       document.getElementById('action_url').value = 'http://10.10.200.102/eportal/InterFace.do?method=login';
       document.getElementById('method').value = 'POST';
       if (!document.getElementById('username').value.trim()) {
-        document.getElementById('username').value = '2311611043';
+        document.getElementById('username').focus();
       }
       document.getElementById('extra_params').value = 'service=&passwordEncrypt=false';
       showNotice('已自动载入锐捷 RG-SAM+ 校园网接口预设！请确认学号并输入密码，然后点击【保存设置】即可开启后台秒连。', 'success');
@@ -1904,7 +1904,9 @@ Login information:
           showNotice(`${t.test_ok} (HTTP ${r.status_code})：${r.message}`, 'success');
           resetSessionTimer();
         } else {
-          showNotice(`${t.test_fail} (HTTP ${r.status_code})：${r.message}`, 'error');
+          let stagePrefix = (r.stage_code && r.stage_code !== 'FAIL') ? `[${r.stage_code}] ` : '';
+          let sugText = r.suggestion ? `<div style="margin-top:5px;font-size:12px;opacity:0.95;">💡 排障建议：${r.suggestion}</div>` : '';
+          showNotice(`<strong>${stagePrefix}${t.test_fail}</strong> (HTTP ${r.status_code})：${r.message}${sugText}`, 'error', 12000);
         }
       } catch (e) {
         handleSessionTimeout(true);

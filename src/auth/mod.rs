@@ -35,7 +35,12 @@ impl AuthExecutor {
             };
 
             if target_url.is_empty() {
-                return AuthResult::fail(0, "未配置登录网页网址 (portal_url)".to_string());
+                return AuthResult::fail_with_stage(
+                    0,
+                    "未配置登录网页网址 (portal_url)".to_string(),
+                    "E4-01",
+                    "请右键托盘图标【设置】，填入校园网登录网页的 URL 地址".to_string(),
+                );
             }
 
             // 防踩坑自愈：
@@ -59,7 +64,12 @@ impl AuthExecutor {
 
             match open_browser_portal(&final_url, true, true) {
                 Ok(_) => AuthResult::ok(200, "已唤起浏览器登录页面，由浏览器自动填充密码登录".to_string()),
-                Err(err) => AuthResult::fail(0, format!("唤起浏览器失败: {}", err)),
+                Err(err) => AuthResult::fail_with_stage(
+                    0,
+                    format!("唤起浏览器失败: {}", err),
+                    "E5-01",
+                    "未能打开默认浏览器，请检查 Windows 默认应用设置".to_string(),
+                ),
             }
         } else {
             // mode == "http" (静默模拟登录)

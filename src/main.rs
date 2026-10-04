@@ -153,7 +153,7 @@ fn main() {
     }
     let snap = fsm.snapshot();
     if let Some(ref mut mgr) = tray_mgr {
-        mgr.update_state(fsm.state(), snap.latency_ms, &app_name);
+        mgr.update_state(fsm.state(), snap.latency_ms, &snap.last_message, &app_name);
     }
 
     // 首次开机自检与托盘渲染就绪，安全回收冷启动期占用，常驻内存压缩至 ~1MB
@@ -195,7 +195,7 @@ fn main() {
             let cur_cfg = fsm.config();
             if let Ok(mut mgr) = SystemTrayManager::new(&app_name, cur_cfg.general.silent_mode, cur_cfg.general.effective_language()) {
                 let s = fsm.snapshot();
-                mgr.update_state(fsm.state(), s.latency_ms, &app_name);
+                mgr.update_state(fsm.state(), s.latency_ms, &s.last_message, &app_name);
                 tray_mgr = Some(mgr);
             }
         }
@@ -208,13 +208,23 @@ fn main() {
                     let st = fsm.on_user_manual_trigger();
                     let s = fsm.snapshot();
                     if let Some(ref mut mgr) = tray_mgr {
-                        mgr.update_state(st, s.latency_ms, &app_name);
+                        mgr.update_state(st, s.latency_ms, &s.last_message, &app_name);
                     }
                 }
                 TrayAction::OpenPortal => {
                     // 核心逻辑：优先使用状态机捕获到的网关真实认证重定向地址或净化后的入口，彻底杜绝 success.jsp 报“原ip与当前用户不一致”
                     let portal_url = fsm.get_effective_portal_url();
                     let _ = auth::browser::open_browser_portal(&portal_url, true, true);
+                }
+                TrayAction::OpenDiagnosticReport => {
+                    let report_content = fsm.generate_diagnostic_report();
+                    let temp_dir = std::env::temp_dir();
+                    let report_file = temp_dir.join("NetTrigger_Diagnostic.txt");
+                    if std::fs::write(&report_file, report_content.as_bytes()).is_ok() {
+                        let _ = std::process::Command::new("notepad.exe")
+                            .arg(&report_file)
+                            .spawn();
+                    }
                 }
                 TrayAction::OpenWebConfig => {
                     let latest_cfg = config::Config::load_or_create()
@@ -269,7 +279,7 @@ fn main() {
             let st = fsm.on_network_changed();
             let s = fsm.snapshot();
             if let Some(ref mut mgr) = tray_mgr {
-                mgr.update_state(st, s.latency_ms, &new_app_name);
+                mgr.update_state(st, s.latency_ms, &s.last_message, &new_app_name);
             }
         }
 
@@ -279,7 +289,7 @@ fn main() {
                 let st = fsm.on_network_changed();
                 let s = fsm.snapshot();
                 if let Some(ref mut mgr) = tray_mgr {
-                    mgr.update_state(st, s.latency_ms, &app_name);
+                    mgr.update_state(st, s.latency_ms, &s.last_message, &app_name);
                 }
             }
         }
@@ -293,7 +303,7 @@ fn main() {
             let st = fsm.on_heartbeat_tick();
             let s = fsm.snapshot();
             if let Some(ref mut mgr) = tray_mgr {
-                mgr.update_state(st, s.latency_ms, &app_name);
+                mgr.update_state(st, s.latency_ms, &s.last_message, &app_name);
             }
         }
 
