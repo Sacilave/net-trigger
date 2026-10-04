@@ -146,11 +146,72 @@ fn main() {
         }
     };
 
-    // 首次开机自检与即刻重连
-    let initial_state = fsm.step_probe();
-    if initial_state != state::NetworkState::Online {
-        fsm.trigger_reconnect();
+    // 6. 启动后台网络专用工作线程（彻底隔离网络 I/O，杜绝主线程 UI 挂起卡死）
+    enum WorkerTask {
+        Probe(probe::Probe),
+        Reconnect {
+            config: Config,
+            detected_url: Option<String>,
+            probe: probe::Probe,
+        },
+        QuickVerify(probe::Probe),
     }
+
+    enum WorkerResult {
+        Probe(probe::ProbeReport),
+        Reconnect {
+            auth_result: auth::AuthResult,
+            verify_report: probe::ProbeReport,
+        },
+        QuickVerify(probe::ProbeReport),
+    }
+
+    let (worker_tx, worker_rx) = channel::<WorkerTask>();
+    let (result_tx, result_rx) = channel::<WorkerResult>();
+
+    let _ = std::thread::Builder::new()
+        .name("nettrigger-worker".to_string())
+        .spawn(move || {
+            while let Ok(task) = worker_rx.recv() {
+                let mut active_task = task;
+                while let Ok(newer) = worker_rx.try_recv() {
+                    active_task = newer;
+                }
+
+                match active_task {
+                    WorkerTask::Probe(probe) => {
+                        let rep = probe.check_with_report();
+                        let _ = result_tx.send(WorkerResult::Probe(rep));
+                    }
+                    WorkerTask::Reconnect { config, detected_url, probe } => {
+                        let auth_res = auth::AuthExecutor::execute(&config, detected_url.as_deref());
+                        if config.auth.mode == "browser" || auth_res.stage_code == "E5-FALLBACK-BROWSER" {
+                            std::thread::sleep(Duration::from_millis(1500));
+                        } else if auth_res.success {
+                            std::thread::sleep(Duration::from_millis(300));
+                        }
+                        let rep = probe.check_with_report();
+                        let _ = result_tx.send(WorkerResult::Reconnect {
+                            auth_result: auth_res,
+                            verify_report: rep,
+                        });
+                    }
+                    WorkerTask::QuickVerify(probe) => {
+                        let rep = probe.check_with_report();
+                        let _ = result_tx.send(WorkerResult::QuickVerify(rep));
+                    }
+                }
+
+                #[cfg(windows)]
+                unsafe {
+                    use windows_sys::Win32::UI::WindowsAndMessaging::{PostThreadMessageW, WM_USER};
+                    PostThreadMessageW(main_thread_id, WM_USER, 0, 0);
+                }
+            }
+        });
+
+    // 首次开机自检以异步任务派发，主线程 0ms 瞬间进入消息泵，托盘永不卡死！
+    let _ = worker_tx.send(WorkerTask::Probe(fsm.probe_instance()));
     let snap = fsm.snapshot();
     if let Some(ref mut mgr) = tray_mgr {
         mgr.update_state(fsm.state(), snap.latency_ms, &snap.last_message, &app_name);
@@ -159,24 +220,12 @@ fn main() {
     // 首次开机自检与托盘渲染就绪，安全回收冷启动期占用，常驻内存压缩至 ~1MB
     utils::mem::trim_working_set();
 
-    // 6. 顶层无损事件主循环 (消息泵 + 内核事件 + 心跳定时器 + 配置热同步)
+    // 7. 顶层极速事件主循环 (UI消息泵 + 内核通知 + 工作线程结果 + 秒级平滑倒计时)
     let mut last_heartbeat = Instant::now();
+    let mut last_second_tick = Instant::now();
 
     loop {
-        // A. 动态计算本次循环最大休眠挂起时间（结合心跳保活与退避等待时间，彻底摆脱 100ms 盲轮询）
-        let heartbeat_interval = Duration::from_secs(fsm.config().general.effective_heartbeat_interval_sec());
-        let time_to_heartbeat = heartbeat_interval.saturating_sub(last_heartbeat.elapsed());
-        let snap = fsm.snapshot();
-        let wait_ms = if snap.backoff_remaining_sec > 0 {
-            let backoff_ms = (snap.backoff_remaining_sec as u128 * 1000).min(u32::MAX as u128) as u32;
-            (time_to_heartbeat.as_millis().min(u32::MAX as u128) as u32).min(backoff_ms)
-        } else {
-            time_to_heartbeat.as_millis().min(u32::MAX as u128) as u32
-        };
-        // 动态约束休眠等待区间在 20ms ~ 90s 之间
-        let wait_ms = wait_ms.clamp(20, 90_000);
-
-        // B. 处理 Win32 消息循环（驱动托盘交互，内核事件即时唤醒，CPU 严格 0.00%）
+        // A. 处理 Win32 消息循环（驱动托盘交互，内核事件即时唤醒，CPU 严格 0.00%）
         #[cfg(windows)]
         unsafe {
             use windows_sys::Win32::UI::WindowsAndMessaging::{
@@ -205,14 +254,23 @@ fn main() {
         if let Some(action) = action {
             match action {
                 TrayAction::ManualCheck => {
-                    let st = fsm.on_user_manual_trigger();
-                    let s = fsm.snapshot();
+                    fsm.clear_backoff();
+                    fsm.transition_to(state::NetworkState::Authenticating, "正在立即重连...".to_string());
+                    let snap = fsm.snapshot();
                     if let Some(ref mut mgr) = tray_mgr {
-                        mgr.update_state(st, s.latency_ms, &s.last_message, &app_name);
+                        mgr.update_state(fsm.state(), snap.latency_ms, &snap.last_message, &app_name);
+                    }
+                    if let Ok(url) = fsm.can_prepare_reconnect() {
+                        let _ = worker_tx.send(WorkerTask::Reconnect {
+                            config: fsm.config().clone(),
+                            detected_url: url,
+                            probe: fsm.probe_instance(),
+                        });
+                    } else {
+                        let _ = worker_tx.send(WorkerTask::Probe(fsm.probe_instance()));
                     }
                 }
                 TrayAction::OpenPortal => {
-                    // 核心逻辑：优先使用状态机捕获到的网关真实认证重定向地址或净化后的入口，彻底杜绝 success.jsp 报“原ip与当前用户不一致”
                     let portal_url = fsm.get_effective_portal_url();
                     let _ = auth::browser::open_browser_portal(&portal_url, true, true);
                 }
@@ -276,38 +334,112 @@ fn main() {
                 mgr.set_language(new_lang, &new_app_name);
             }
             fsm.update_config(new_cfg);
-            let st = fsm.on_network_changed();
-            let s = fsm.snapshot();
-            if let Some(ref mut mgr) = tray_mgr {
-                mgr.update_state(st, s.latency_ms, &s.last_message, &new_app_name);
-            }
+            fsm.clear_backoff();
+            let _ = worker_tx.send(WorkerTask::Probe(fsm.probe_instance()));
         }
 
         // D. 处理 Windows 底层网卡变动事件（近乎 0 延迟响应）
         while let Ok(net_evt) = net_rx.try_recv() {
             if net_evt == NetworkEvent::NetworkChanged {
-                let st = fsm.on_network_changed();
-                let s = fsm.snapshot();
+                fsm.clear_backoff();
+                let _ = worker_tx.send(WorkerTask::Probe(fsm.probe_instance()));
+                let snap = fsm.snapshot();
                 if let Some(ref mut mgr) = tray_mgr {
-                    mgr.update_state(st, s.latency_ms, &s.last_message, &app_name);
+                    mgr.update_state(fsm.state(), snap.latency_ms, "检测到网络变动，立即重新检测...", &app_name);
                 }
             }
         }
 
-        // D. 处理低频心跳定时器 (Heartbeat) 或退避冷却到期即刻重测
-        let heartbeat_interval = Duration::from_secs(fsm.config().general.effective_heartbeat_interval_sec());
-        let snap = fsm.snapshot();
-        let is_backoff_expired = fsm.state() == state::NetworkState::BackoffWait && snap.backoff_remaining_sec == 0;
-        if last_heartbeat.elapsed() >= heartbeat_interval || is_backoff_expired {
-            last_heartbeat = Instant::now();
-            let st = fsm.on_heartbeat_tick();
-            let s = fsm.snapshot();
-            if let Some(ref mut mgr) = tray_mgr {
-                mgr.update_state(st, s.latency_ms, &s.last_message, &app_name);
+        // E. 处理后台网络异步操作结果（毫秒级状态同步）
+        while let Ok(res) = result_rx.try_recv() {
+            match res {
+                WorkerResult::Probe(report) => {
+                    let needs_reconnect = fsm.apply_probe_result(report);
+                    let snap = fsm.snapshot();
+                    if let Some(ref mut mgr) = tray_mgr {
+                        mgr.update_state(fsm.state(), snap.latency_ms, &snap.last_message, &app_name);
+                    }
+                    if needs_reconnect {
+                        if let Ok(url) = fsm.can_prepare_reconnect() {
+                            let _ = worker_tx.send(WorkerTask::Reconnect {
+                                config: fsm.config().clone(),
+                                detected_url: url,
+                                probe: fsm.probe_instance(),
+                            });
+                            let s = fsm.snapshot();
+                            if let Some(ref mut mgr) = tray_mgr {
+                                mgr.update_state(fsm.state(), s.latency_ms, &s.last_message, &app_name);
+                            }
+                        }
+                    }
+                }
+                WorkerResult::Reconnect { auth_result, verify_report } => {
+                    fsm.apply_reconnect_result(auth_result, verify_report);
+                    let snap = fsm.snapshot();
+                    if let Some(ref mut mgr) = tray_mgr {
+                        mgr.update_state(fsm.state(), snap.latency_ms, &snap.last_message, &app_name);
+                    }
+                }
+                WorkerResult::QuickVerify(report) => {
+                    if report.status.is_online() {
+                        fsm.apply_probe_result(report);
+                        let snap = fsm.snapshot();
+                        if let Some(ref mut mgr) = tray_mgr {
+                            mgr.update_state(fsm.state(), snap.latency_ms, &snap.last_message, &app_name);
+                        }
+                    }
+                }
             }
         }
 
-        // E. 内核级挂起等待：所有就绪事件与操作处理完毕后，在循环最末端等待下一个事件信号或心跳超时
+        // F. 秒级定时器驱动（每秒驱动退避倒计时、快速核验或低频心跳）
+        if last_second_tick.elapsed() >= Duration::from_millis(950) {
+            last_second_tick = Instant::now();
+            let (is_backoff_expired, should_quick_verify) = fsm.tick_second();
+            let snap = fsm.snapshot();
+
+            if fsm.state() == state::NetworkState::BackoffWait {
+                if let Some(ref mut mgr) = tray_mgr {
+                    mgr.update_state(fsm.state(), snap.latency_ms, &snap.last_message, &app_name);
+                }
+                if should_quick_verify {
+                    let _ = worker_tx.send(WorkerTask::QuickVerify(fsm.probe_instance()));
+                }
+                if is_backoff_expired {
+                    if let Ok(url) = fsm.can_prepare_reconnect() {
+                        let _ = worker_tx.send(WorkerTask::Reconnect {
+                            config: fsm.config().clone(),
+                            detected_url: url,
+                            probe: fsm.probe_instance(),
+                        });
+                        let s = fsm.snapshot();
+                        if let Some(ref mut mgr) = tray_mgr {
+                            mgr.update_state(fsm.state(), s.latency_ms, &s.last_message, &app_name);
+                        }
+                    } else {
+                        let _ = worker_tx.send(WorkerTask::Probe(fsm.probe_instance()));
+                    }
+                }
+            } else if fsm.state() == state::NetworkState::Online {
+                let heartbeat_interval = Duration::from_secs(fsm.config().general.effective_heartbeat_interval_sec());
+                if last_heartbeat.elapsed() >= heartbeat_interval {
+                    last_heartbeat = Instant::now();
+                    let _ = worker_tx.send(WorkerTask::Probe(fsm.probe_instance()));
+                }
+            }
+        }
+
+        // G. 动态约束休眠等待时间（严格不超过 1000ms，退避期间 500ms，彻底杜绝 60 秒硬休眠导致卡死）
+        let snap = fsm.snapshot();
+        let wait_ms = if snap.backoff_remaining_sec > 0 {
+            500u32
+        } else if fsm.state() == state::NetworkState::Authenticating {
+            200u32
+        } else {
+            1000u32
+        };
+
+        // H. 内核级挂起等待：所有就绪事件与操作处理完毕后等待下一个事件信号或定时超时
         #[cfg(windows)]
         unsafe {
             use windows_sys::Win32::UI::WindowsAndMessaging::{MsgWaitForMultipleObjects, QS_ALLINPUT};

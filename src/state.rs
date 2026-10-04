@@ -207,15 +207,14 @@ impl StateMachine {
         }
     }
 
-    /// 核心处理：网络状态全面探查与跃迁
-    pub fn step_probe(&mut self) -> NetworkState {
-        let report = self.probe.check_with_report();
-        self.latency_ms = report.latency_ms;
-        self.apply_probe_result(report)
+    /// 获取探针实例的克隆（供后台工作线程并发探查，彻底不阻塞 UI 消息泵）
+    pub fn probe_instance(&self) -> Probe {
+        self.probe.clone()
     }
 
-    /// 应用探针检测结果并执行状态跃迁
-    fn apply_probe_result(&mut self, report: ProbeReport) -> NetworkState {
+    /// 应用探针检测结果并执行状态跃迁，返回是否需要立即触发重连
+    pub fn apply_probe_result(&mut self, report: ProbeReport) -> bool {
+        self.latency_ms = report.latency_ms;
         match report.status {
             ProbeStatus::Online => {
                 // 互联网完全畅通，重置所有退避与失败计数器
@@ -232,6 +231,7 @@ impl StateMachine {
                     NetworkState::Online,
                     format!("网络已连接 (延迟: {}ms)", self.latency_ms),
                 );
+                false
             }
             ProbeStatus::CaptivePortal { redirect_url } => {
                 // 智能自动捕获：若网关返回了真实认证地址，且当前用户尚未配置或为占位地址或受污染的 success.jsp，自动自愈采纳
@@ -272,9 +272,7 @@ impl StateMachine {
 
                 let msg = "需要登录校园网，正在准备连接...".to_string();
                 self.transition_to(NetworkState::CaptivePortal, msg);
-
-                // 立即触发自动重连动作
-                self.trigger_reconnect();
+                true
             }
             ProbeStatus::Offline { reason } => {
                 self.record_diagnostic(
@@ -284,23 +282,28 @@ impl StateMachine {
                     "请检查 Wi-Fi 连接是否已连接到校园网，或检查网线是否插好。",
                 );
                 self.transition_to(NetworkState::Disconnected, format!("未连接到网络: {}", reason));
+                false
             }
         }
+    }
 
+    /// 核心处理：网络状态全面探查与跃迁（同步接口）
+    pub fn step_probe(&mut self) -> NetworkState {
+        let report = self.probe.check_with_report();
+        if self.apply_probe_result(report) {
+            self.trigger_reconnect();
+        }
         self.current_state
     }
 
-    /// 触发自动重连动作流水线
-    pub fn trigger_reconnect(&mut self) {
-        // 检查退避窗口
+    /// 检查并准备重连前置条件（核验局域网链路、DHCP状态等）
+    pub fn can_prepare_reconnect(&mut self) -> Result<Option<String>, ()> {
         if let Some(until) = self.backoff_until {
             if Instant::now() < until {
-                // 仍处于退避冷却中，暂不发包
-                return;
+                return Err(());
             }
         }
 
-        // 关键防护：若配置为局域网认证（如校园网 10.10.200.102 / eportal），但物理局域网网卡未连接（Wi-Fi已断开或网线未插）
         let is_campus_target = self.config.auth.http.action_url.contains("10.10.200.102")
             || self.config.auth.portal_url.contains("10.10.200.102")
             || self.config.auth.http.action_url.contains("eportal");
@@ -320,38 +323,20 @@ impl StateMachine {
                         NetworkState::BackoffWait,
                         "[E1-02] 网络准备中: 正在获取校园网 IP (DHCP)...".to_string(),
                     );
-                    return;
+                    return Err(());
                 }
             } else {
-                // 物理局域网未连接，绝不可向 4G 蜂窝网卡发校园网认证包！
-                // 立即核验当前机器是否有其它网络连通（例如 LTE 蜂窝网络正常上网）
-                let probe_rep = self.probe.check_with_report();
-                if probe_rep.status.is_online() {
-                    self.consecutive_failures = 0;
-                    self.backoff_until = None;
-                    self.record_diagnostic(
-                        "E1-03",
-                        "已阻止局域网认证: 仅蜂窝移动网络在线",
-                        "当前 Wi-Fi/以太网未连接，仅检测到 4G/5G 蜂窝网卡在线",
-                        "为防止产生额外蜂窝移动流量，已阻止发送局域网认证包。若需连接校园网，请打开无线网卡并连接 usywireless。",
-                    );
-                    self.transition_to(
-                        NetworkState::Online,
-                        format!("移动蜂窝网络在线 (延迟: {}ms)", probe_rep.latency_ms),
-                    );
-                } else {
-                    self.record_diagnostic(
-                        "E1-01",
-                        "未连接网络: WiFi未开启或网线未插",
-                        "系统中未检测到活动的以太网或无线局域网适配器",
-                        "请在 Windows 中开启 Wi-Fi 并连接到校园网无线热点。",
-                    );
-                    self.transition_to(
-                        NetworkState::Disconnected,
-                        "[E1-01] 未连接到网络 (WiFi未开启/网线未插)".to_string(),
-                    );
-                }
-                return;
+                self.record_diagnostic(
+                    "E1-01",
+                    "未连接网络: WiFi未开启或网线未插",
+                    "系统中未检测到活动的以太网或无线局域网适配器",
+                    "请在 Windows 中开启 Wi-Fi 并连接到校园网无线热点。",
+                );
+                self.transition_to(
+                    NetworkState::Disconnected,
+                    "[E1-01] 未连接到网络 (WiFi未开启/网线未插)".to_string(),
+                );
+                return Err(());
             }
         }
 
@@ -363,50 +348,11 @@ impl StateMachine {
         };
         self.transition_to(NetworkState::Authenticating, action_desc.to_string());
 
-        let detected_url = self.last_detected_portal_url.as_deref();
+        Ok(self.last_detected_portal_url.clone())
+    }
 
-        // 浏览器模式下防频繁重复弹窗切屏：
-        // 若在最近 30 秒内已经唤起过浏览器窗口，且正处于退避等待中，避免频繁重复弹窗切屏
-        let should_skip_browser_open = if is_browser_mode {
-            if let Some(opened_at) = self.last_browser_open_at {
-                opened_at.elapsed() < Duration::from_secs(30) && self.consecutive_failures > 0
-            } else {
-                false
-            }
-        } else {
-            false
-        };
-
-        let auth_result: AuthResult = if should_skip_browser_open {
-            AuthResult::ok(200, "等待用户在已打开的网页中完成登录...".to_string())
-        } else {
-            let res = AuthExecutor::execute(&self.config, detected_url);
-            if is_browser_mode && res.success {
-                self.last_browser_open_at = Some(Instant::now());
-            }
-            res
-        };
-
-        if !auth_result.success {
-            self.record_diagnostic(
-                auth_result.stage_code,
-                "网关认证失败",
-                &auth_result.message,
-                &auth_result.suggestion,
-            );
-        }
-
-        if is_browser_mode {
-            // 网页自动登录模式下，给浏览器 1.5 秒启动、自动填充与提交时间，避免 0ms 瞬间误判失败
-            std::thread::sleep(Duration::from_millis(1500));
-        } else if auth_result.success {
-            // 校园网网关（如锐捷 SAM+、深澜等）在收到登录成功响应后，底层防火墙规则下发通常有 100~300ms 纳管延迟
-            // 稍作缓冲后再进行权威探测核验，杜绝瞬间误判
-            std::thread::sleep(Duration::from_millis(300));
-        }
-
-        // 认证报文发送完成后，执行一次快速探针二次核验
-        let verify_report = self.probe.check_with_report();
+    /// 应用异步重连完成的结果
+    pub fn apply_reconnect_result(&mut self, auth_result: AuthResult, verify_report: ProbeReport) {
         self.latency_ms = verify_report.latency_ms;
 
         if verify_report.status.is_online() {
@@ -424,61 +370,156 @@ impl StateMachine {
                 format!("网络连接成功！(延迟: {}ms)", self.latency_ms),
             );
         } else {
-            // 认证仍未成功，启动平滑退避
-            self.consecutive_failures = self.consecutive_failures.saturating_add(1);
-            let backoff_secs = self.calculate_backoff_secs();
-            self.backoff_until = Some(Instant::now() + Duration::from_secs(backoff_secs));
+            let is_browser_action = self.config.auth.mode == "browser"
+                || auth_result.stage_code == "E5-FALLBACK-BROWSER";
 
-            if auth_result.success {
-                // E6-01: 认证报文虽成功送达，但外网尚未放行 (流表纳管延迟)
-                self.record_diagnostic(
-                    "E6-01",
-                    "认证已发送但外网尚未放行 (规则延迟)",
-                    "网关返回成功，但 300ms 后外网 204 探针仍被拦截 (防火墙规则生效延迟)",
-                    "校园网防火墙流表纳管通常有 1~3 秒延迟，NetTrigger 将在稍后自动二次核验。",
-                );
-            }
+            if is_browser_action {
+                self.last_browser_open_at = Some(Instant::now());
+                // 浏览器模式下不进行指数退避惩罚，保持 3 秒轻量轮询检测
+                let backoff_secs = 3u64;
+                self.backoff_until = Some(Instant::now() + Duration::from_secs(backoff_secs));
 
-            let stage_tag = if let Some(ref diag) = self.last_diagnostic {
-                if !diag.stage_code.is_empty() && diag.stage_code != "OK" {
-                    format!("[{}] ", diag.stage_code)
+                let prompt_msg = if auth_result.stage_code == "E5-FALLBACK-BROWSER" {
+                    "[E5-01] 静默登录未成功，已唤起浏览器登录，等待网页端登录完成..."
+                } else {
+                    "已打开浏览器登录页面，等待网页端登录完成..."
+                };
+                self.transition_to(NetworkState::BackoffWait, prompt_msg.to_string());
+            } else {
+                self.consecutive_failures = self.consecutive_failures.saturating_add(1);
+                let backoff_secs = self.calculate_backoff_secs();
+                self.backoff_until = Some(Instant::now() + Duration::from_secs(backoff_secs));
+
+                // 仅当 HTTP 模拟认证返回了明确成功 (status 200 且 success 为 true)，但外网探针依然被拦截时，才判定为 E6-01 (规则生效延迟)
+                if auth_result.success {
+                    self.record_diagnostic(
+                        "E6-01",
+                        "认证已发送但外网尚未放行 (规则延迟)",
+                        "网关返回成功，但外网 204 探针仍被拦截 (防火墙规则生效延迟)",
+                        "校园网防火墙流表下发通常有 1~3 秒延迟，NetTrigger 将在稍后自动二次核验。",
+                    );
+                } else {
+                    self.record_diagnostic(
+                        auth_result.stage_code,
+                        "网关认证失败",
+                        &auth_result.message,
+                        &auth_result.suggestion,
+                    );
+                }
+
+                let stage_tag = if let Some(ref diag) = self.last_diagnostic {
+                    if !diag.stage_code.is_empty() && diag.stage_code != "OK" {
+                        format!("[{}] ", diag.stage_code)
+                    } else {
+                        String::new()
+                    }
                 } else {
                     String::new()
-                }
-            } else {
-                String::new()
-            };
+                };
 
-            let reason_summary = if !auth_result.success && !auth_result.message.is_empty() {
-                format!("{}: ", auth_result.message)
-            } else if auth_result.success {
-                "等待网关防火墙规则放行: ".to_string()
-            } else {
-                String::new()
-            };
+                let reason_summary = if !auth_result.success && !auth_result.message.is_empty() {
+                    format!("{}: ", auth_result.message)
+                } else if auth_result.success {
+                    "等待网关防火墙规则放行: ".to_string()
+                } else {
+                    String::new()
+                };
 
-            let user_friendly_msg = if is_browser_mode {
-                format!(
-                    "{}{}等待网页登录中，{}秒后自动检测 (第{}次)",
-                    stage_tag, reason_summary, backoff_secs, self.consecutive_failures
-                )
-            } else {
-                format!(
+                let user_friendly_msg = format!(
                     "{}{}{}秒后重试 (第{}次)",
                     stage_tag, reason_summary, backoff_secs, self.consecutive_failures
-                )
-            };
+                );
 
-            let clamped_msg = if user_friendly_msg.chars().count() > 110 {
-                let mut s: String = user_friendly_msg.chars().take(107).collect();
-                s.push_str("...");
-                s
-            } else {
-                user_friendly_msg
-            };
+                let clamped_msg = if user_friendly_msg.chars().count() > 110 {
+                    let mut s: String = user_friendly_msg.chars().take(107).collect();
+                    s.push_str("...");
+                    s
+                } else {
+                    user_friendly_msg
+                };
 
-            self.transition_to(NetworkState::BackoffWait, clamped_msg);
+                self.transition_to(NetworkState::BackoffWait, clamped_msg);
+            }
         }
+    }
+
+    /// 触发自动重连动作流水线（同步执行接口）
+    pub fn trigger_reconnect(&mut self) {
+        let detected_url = match self.can_prepare_reconnect() {
+            Ok(url) => url,
+            Err(_) => return,
+        };
+
+        let is_browser_mode = self.config.auth.mode == "browser";
+        let should_skip_browser_open = if is_browser_mode {
+            if let Some(opened_at) = self.last_browser_open_at {
+                opened_at.elapsed() < Duration::from_secs(30) && self.consecutive_failures > 0
+            } else {
+                false
+            }
+        } else {
+            false
+        };
+
+        let auth_result: AuthResult = if should_skip_browser_open {
+            AuthResult::ok(200, "等待用户在已打开的网页中完成登录...".to_string())
+        } else {
+            let res = AuthExecutor::execute(&self.config, detected_url.as_deref());
+            if is_browser_mode && res.success {
+                self.last_browser_open_at = Some(Instant::now());
+            }
+            res
+        };
+
+        if is_browser_mode {
+            std::thread::sleep(Duration::from_millis(1500));
+        } else if auth_result.success {
+            std::thread::sleep(Duration::from_millis(300));
+        }
+
+        let verify_report = self.probe.check_with_report();
+        self.apply_reconnect_result(auth_result, verify_report);
+    }
+
+    /// 每秒滴答：驱动退避倒计时实时刷新与到期重试判断
+    /// 返回值：(is_backoff_expired, should_quick_verify)
+    pub fn tick_second(&mut self) -> (bool, bool) {
+        let now = Instant::now();
+        let is_browser = self.config.auth.mode == "browser"
+            || self.last_browser_open_at.is_some();
+
+        if let Some(until) = self.backoff_until {
+            if now >= until {
+                self.backoff_until = None;
+                return (true, false);
+            }
+            let rem = until.duration_since(now).as_secs() + 1;
+            let stage_tag = self.last_diagnostic.as_ref()
+                .filter(|d| !d.stage_code.is_empty() && d.stage_code != "OK")
+                .map(|d| format!("[{}] ", d.stage_code))
+                .unwrap_or_default();
+
+            if is_browser {
+                self.last_message = format!("{}等待网页登录中，{}秒后自动检测", stage_tag, rem);
+            } else {
+                let reason = self.last_diagnostic.as_ref()
+                    .map(|d| format!("{}: ", d.title))
+                    .unwrap_or_default();
+                self.last_message = format!("{}{}{}秒后重试 (第{}次)", stage_tag, reason, rem, self.consecutive_failures);
+            }
+
+            let should_quick_verify = is_browser && (rem % 3 == 0);
+            return (false, should_quick_verify);
+        }
+
+        (false, false)
+    }
+
+    /// 立即清空退避与错误计数
+    pub fn clear_backoff(&mut self) {
+        self.consecutive_failures = 0;
+        self.backoff_until = None;
+        self.last_browser_open_at = None;
     }
 
     /// 生成格式化专业排障诊断报告（供用户右键托盘查看）
@@ -622,7 +663,7 @@ r#"=============================================================================
     }
 
     /// 状态跃迁辅助函数
-    fn transition_to(&mut self, new_state: NetworkState, message: String) {
+    pub fn transition_to(&mut self, new_state: NetworkState, message: String) {
         if self.current_state != new_state {
             self.current_state = new_state;
             self.last_state_change = Instant::now();
@@ -779,5 +820,49 @@ mod tests {
         assert!(report.contains("[E5-01]"));
         assert!(report.contains("用户不存在或密码错误"));
         assert!(report.contains("请核对学号与密码"));
+    }
+
+    #[test]
+    fn test_apply_reconnect_result_browser_fallback_no_e6_01() {
+        let config = Config::default();
+        let mut fsm = StateMachine::new(config);
+
+        let fallback_auth = AuthResult::fail_with_stage(
+            0,
+            "静默登录未成功，已自动唤起浏览器登录页面".to_string(),
+            "E5-FALLBACK-BROWSER",
+            "已为您打开校园网登录页面，请在网页中完成登录。".to_string(),
+        );
+
+        let verify_offline = ProbeReport {
+            status: ProbeStatus::Offline { reason: "test".to_string() },
+            latency_ms: 10,
+        };
+
+        fsm.apply_reconnect_result(fallback_auth, verify_offline);
+
+        // 绝不可误判为 E6-01
+        if let Some(ref diag) = fsm.last_diagnostic {
+            assert_ne!(diag.stage_code, "E6-01");
+        }
+        assert_eq!(fsm.state(), NetworkState::BackoffWait);
+        // 退避时间不应为指数退避的 60 秒，应为温和的 3 秒等待
+        let snap = fsm.snapshot();
+        assert!(snap.backoff_remaining_sec <= 3);
+        assert!(snap.last_message.contains("等待网页端登录完成"));
+    }
+
+    #[test]
+    fn test_tick_second_live_countdown() {
+        let config = Config::default();
+        let mut fsm = StateMachine::new(config);
+        fsm.consecutive_failures = 1;
+        fsm.backoff_until = Some(Instant::now() + Duration::from_secs(10));
+        fsm.current_state = NetworkState::BackoffWait;
+
+        let (expired, _) = fsm.tick_second();
+        assert!(!expired);
+        let snap = fsm.snapshot();
+        assert!(snap.last_message.contains("秒后重试"));
     }
 }

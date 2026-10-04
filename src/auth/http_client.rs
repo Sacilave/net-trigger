@@ -305,7 +305,7 @@ pub fn fetch_portal_redirect_via_lan(target_ip: &str) -> Option<String> {
 
 /// 实时探测局域网并获取最新的动态 queryString (如 wlanuserip=...&wlanacname=...)
 pub fn get_fresh_ruijie_query_string() -> Option<String> {
-    for target in &["1.1.1.1", "123.123.123.123", "114.114.114.114"] {
+    for target in &["1.1.1.1", "123.123.123.123"] {
         if let Some(url) = fetch_portal_redirect_via_lan(target) {
             if let Some(q_pos) = url.find('?') {
                 let qs = &url[q_pos + 1..];
@@ -320,7 +320,7 @@ pub fn get_fresh_ruijie_query_string() -> Option<String> {
 
 /// 实时探测局域网并获取最新的动态登录页面 URL
 pub fn get_fresh_ruijie_portal_url() -> Option<String> {
-    for target in &["1.1.1.1", "123.123.123.123", "114.114.114.114"] {
+    for target in &["1.1.1.1", "123.123.123.123"] {
         if let Some(url) = fetch_portal_redirect_via_lan(target) {
             if url.contains("eportal") || url.contains("index.jsp") {
                 return Some(url);
@@ -332,12 +332,11 @@ pub fn get_fresh_ruijie_portal_url() -> Option<String> {
 
 /// 锐捷 SAM+ queryString 专用编码：仅替换 & 为 %2526、= 为 %253D
 ///
-/// 锐捷 ePortal 的 queryString 不是标准 URL 编码！
+/// 锐捷 ePortal 的 queryString 不是标准全量 URL 编码！
 /// 浏览器 JS 实际执行的是 encodeURIComponent(encodeURIComponent(qs))，
 /// 但因为 qs 内容本身只含 [a-zA-Z0-9&=] 和已编码的 hex，
-/// 两次 encodeURIComponent 的实际效果等价于：& → %2526, = → %253D，其余字符不变。
-#[allow(dead_code)]
-fn encode_ruijie_query_string(raw_qs: &str) -> String {
+/// 两次 encodeURIComponent 的实际效果等价于：& → %2526, = → %253D，其余字符保持原样。
+pub fn encode_ruijie_query_string(raw_qs: &str) -> String {
     raw_qs.replace('&', "%2526").replace('=', "%253D")
 }
 
@@ -526,15 +525,17 @@ pub fn execute_ruijie_sam_auth(
     let operator_user_id = params.get("operatorUserId").cloned().unwrap_or_default();
     let validcode = params.get("validcode").cloned().unwrap_or_default();
 
-    // 锐捷官方规范：所有提交字段按 encodeURIComponent(encodeURIComponent(v)) 双重编码
-    let enc_username = urlencoding_encode(&urlencoding_encode(&username));
-    let enc_password = urlencoding_encode(&urlencoding_encode(&pwd_to_send));
-    let enc_service = urlencoding_encode(&urlencoding_encode(&service));
-    let enc_query_string = urlencoding_encode(&urlencoding_encode(&query_string));
-    let enc_operator_pwd = urlencoding_encode(&urlencoding_encode(&operator_pwd));
-    let enc_operator_user_id = urlencoding_encode(&urlencoding_encode(&operator_user_id));
-    let enc_validcode = urlencoding_encode(&urlencoding_encode(&validcode));
-    let enc_encrypt = urlencoding_encode(&urlencoding_encode(&encrypt_flag));
+    // 锐捷 SAM+ 规范：
+    // 1. queryString 必须采用特殊替换编码 (& -> %2526, = -> %253D)，绝不可对其全量二次 URL 编码！
+    // 2. 其余字段按标准 URL 编码一次传输，保证特殊字符安全传输
+    let enc_username = urlencoding_encode(&username);
+    let enc_password = urlencoding_encode(&pwd_to_send);
+    let enc_service = urlencoding_encode(&service);
+    let enc_query_string = encode_ruijie_query_string(&query_string);
+    let enc_operator_pwd = urlencoding_encode(&operator_pwd);
+    let enc_operator_user_id = urlencoding_encode(&operator_user_id);
+    let enc_validcode = urlencoding_encode(&validcode);
+    let enc_encrypt = urlencoding_encode(&encrypt_flag);
 
     let body = format!(
         "userId={}&password={}&service={}&queryString={}&operatorPwd={}&operatorUserId={}&validcode={}&passwordEncrypt={}",
@@ -669,7 +670,12 @@ fn parse_ruijie_response(resp_str: &str) -> AuthResult {
             "校园网认证服务器内部错误，学校 SAM+ 系统可能在维护中，稍后将自动重试。".to_string(),
         )
     } else {
-        AuthResult::ok(200, "认证报文已发送".to_string())
+        AuthResult::fail_with_stage(
+            200,
+            format!("网关返回未识别内容: {}", resp_str.chars().take(60).collect::<String>()),
+            "E5-01",
+            "网关响应中未包含登录成功标记，请检查学号与密码，或在【设置】中切换为自动打开网页模式。".to_string(),
+        )
     }
 }
 
@@ -885,6 +891,10 @@ fn connect_lan_bound_tcp(
             sin_zero: [0; 8],
         };
 
+        // 1. 设置为非阻塞模式以精准控制 connect 超时（杜绝 Windows 默认 21 秒 SYN 超时挂死主线程）
+        let mut non_blocking: u32 = 1;
+        ioctlsocket(sock, FIONBIO, &mut non_blocking);
+
         let ret = connect(
             sock,
             &remote_sin as *const _ as *const _,
@@ -892,10 +902,62 @@ fn connect_lan_bound_tcp(
         );
 
         if ret != 0 {
-            let err = std::io::Error::last_os_error();
-            closesocket(sock);
-            return Err(err);
+            let wsa_err = WSAGetLastError();
+            // WSAEWOULDBLOCK = 10035
+            if wsa_err == 10035 {
+                let mut write_fds: FD_SET = std::mem::zeroed();
+                write_fds.fd_count = 1;
+                write_fds.fd_array[0] = sock;
+
+                let mut except_fds: FD_SET = std::mem::zeroed();
+                except_fds.fd_count = 1;
+                except_fds.fd_array[0] = sock;
+
+                let tv_sec = (timeout_ms / 1000) as i32;
+                let tv_usec = ((timeout_ms % 1000) * 1000) as i32;
+                let tv = TIMEVAL {
+                    tv_sec,
+                    tv_usec,
+                };
+
+                let sel = select(
+                    0,
+                    std::ptr::null_mut(),
+                    &mut write_fds,
+                    &mut except_fds,
+                    &tv,
+                );
+
+                if sel <= 0 {
+                    closesocket(sock);
+                    return Err(std::io::Error::new(
+                        std::io::ErrorKind::TimedOut,
+                        format!("连接网关 ({}:{}) 超时 ({}ms)", remote_ip, port, timeout_ms),
+                    ));
+                }
+
+                let mut so_err: i32 = 0;
+                let mut so_err_len = std::mem::size_of_val(&so_err) as i32;
+                getsockopt(
+                    sock,
+                    SOL_SOCKET,
+                    SO_ERROR,
+                    &mut so_err as *mut _ as *mut _,
+                    &mut so_err_len,
+                );
+                if so_err != 0 {
+                    closesocket(sock);
+                    return Err(std::io::Error::from_raw_os_error(so_err));
+                }
+            } else {
+                closesocket(sock);
+                return Err(std::io::Error::from_raw_os_error(wsa_err));
+            }
         }
+
+        // 2. 恢复为阻塞模式，以便后续标准读写及超时控制生效
+        let mut blocking: u32 = 0;
+        ioctlsocket(sock, FIONBIO, &mut blocking);
 
         Ok(std::net::TcpStream::from_raw_socket(sock as _))
     }

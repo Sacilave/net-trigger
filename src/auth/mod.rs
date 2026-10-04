@@ -140,7 +140,14 @@ impl AuthExecutor {
                     } else {
                         "http://123.123.123.123/"
                     });
-                let _ = open_browser_portal(fallback_url, true, false);
+                if open_browser_portal(fallback_url, true, false).is_ok() {
+                    return AuthResult::fail_with_stage(
+                        0,
+                        "静默登录未成功，已自动唤起浏览器登录页面".to_string(),
+                        "E5-FALLBACK-BROWSER",
+                        "已为您打开校园网登录页面，请在网页中完成登录。".to_string(),
+                    );
+                }
             }
 
             result
