@@ -267,6 +267,8 @@ pub fn execute_ruijie_sam_auth(
         Ok(resp_str) => {
             if resp_str.contains("\"result\":\"success\"")
                 || resp_str.contains("\"result\": \"success\"")
+                || resp_str.contains("用户在线")
+                || resp_str.contains("已在线")
             {
                 AuthResult::ok(200, "锐捷 SAM+ 校园网后台静默登录成功！".to_string())
             } else if resp_str.contains("\"result\":\"fail\"")
@@ -309,7 +311,11 @@ fn execute_ruijie_sam_ureq_fallback(
             let mut reader = response.into_reader().take(1024);
             let n = reader.read(&mut buf).unwrap_or(0);
             let snippet = String::from_utf8_lossy(&buf[..n]);
-            if snippet.contains("\"result\":\"success\"") || snippet.contains("\"result\": \"success\"") {
+            if snippet.contains("\"result\":\"success\"")
+                || snippet.contains("\"result\": \"success\"")
+                || snippet.contains("用户在线")
+                || snippet.contains("已在线")
+            {
                 AuthResult::ok(200, "锐捷 SAM+ 校园网静默登录成功 (备用通道)".to_string())
             } else if snippet.contains("\"result\":\"fail\"") || snippet.contains("\"result\": \"fail\"") {
                 let err_msg = extract_json_field(&snippet, "message").unwrap_or_else(|| "认证失败".to_string());
