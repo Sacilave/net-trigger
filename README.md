@@ -100,10 +100,10 @@
 
 ```mermaid
 flowchart LR
-    A[Windows IP Helper 内核通知] -->|< 5ms 被动唤醒| B[50ms 黄金链路防抖]
-    B --> C[权威 204 探针检测]
-    C -->|发现网关拦截| D[后台静默 HTTP / 网页平滑认证]
-    D -->|二次快速核验| E[🟢 瞬间恢复连通 (总耗时 < 95ms)]
+    A["Windows IP Helper 内核通知"] -->|"< 5ms 被动唤醒"| B["50ms 黄金链路防抖"]
+    B --> C["权威 204 探针检测"]
+    C -->|"发现网关拦截"| D["后台静默 HTTP / 网页平滑认证"]
+    D -->|"二次快速核验"| E["🟢 瞬间恢复连通 (总耗时 < 95ms)"]
     style E fill:#22c55e,stroke:#15803d,color:#ffffff
     style D fill:#0284c7,stroke:#0369a1,color:#ffffff
 ```

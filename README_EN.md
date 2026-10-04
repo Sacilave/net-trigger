@@ -101,10 +101,10 @@ Executes HTTP authentication packets quietly in the background without stealing 
 
 ```mermaid
 flowchart LR
-    A[Windows IP Helper Event] -->|< 5ms Passive Wakeup| B[50ms Link Debounce]
-    B --> C[Authoritative 204 Probe]
-    C -->|Gateway Interception Detected| D[Silent HTTP / Browser Reconnect]
-    D -->|Quick Verification| E[🟢 Online Restored (< 95ms total)]
+    A["Windows IP Helper Event"] -->|"< 5ms Passive Wakeup"| B["50ms Link Debounce"]
+    B --> C["Authoritative 204 Probe"]
+    C -->|"Gateway Interception Detected"| D["Silent HTTP / Browser Reconnect"]
+    D -->|"Quick Verification"| E["🟢 Online Restored (< 95ms total)"]
     style E fill:#22c55e,stroke:#15803d,color:#ffffff
     style D fill:#0284c7,stroke:#0369a1,color:#ffffff
 ```
