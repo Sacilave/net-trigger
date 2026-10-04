@@ -18,16 +18,19 @@ jobs:
       - name: 检出源码
         uses: actions/checkout@v4
 
-      - name: 安装 Rust 稳定版工具链
+      - name: 安装 Rust 稳定版工具链 (x64 与 x86)
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: x86_64-pc-windows-msvc
+          targets: x86_64-pc-windows-msvc, i686-pc-windows-msvc
 
-      - name: 自动化全链路测试
+      - name: 自动化全链路测试 (x64)
         run: cargo test --release --verbose
 
-      - name: 极限优化编译 (LTO & Strip)
-        run: cargo build --release
+      - name: 极限优化编译 (x64)
+        run: cargo build --release --target x86_64-pc-windows-msvc
+
+      - name: 极限优化编译 (x86)
+        run: cargo build --release --target i686-pc-windows-msvc
 
       - name: 安装 Inno Setup 打包引擎
         shell: pwsh
@@ -38,7 +41,7 @@ jobs:
           New-Item -ItemType Directory -Force -Path "C:\Program Files (x86)\Inno Setup 6\Languages" | Out-Null
           Copy-Item "installer/ChineseSimplified.isl" -Destination "C:\Program Files (x86)\Inno Setup 6\Languages\ChineseSimplified.isl" -Force
 
-      - name: 构建一键 Windows 安装包 (Setup.exe)
+      - name: 构建一键 Windows 安装包 (x64 Setup.exe)
         run: iscc installer/NetTrigger.iss
 
       - name: 整理发布产物与生成校验和
@@ -55,38 +58,55 @@ jobs:
           $distDir = "dist"
           New-Item -ItemType Directory -Force -Path $distDir | Out-Null
           
-          # 3. 复制核心可执行程序与配置模板
-          Copy-Item "target/release/NetTrigger.exe" -Destination "$distDir/NetTrigger.exe"
-          Copy-Item "config.example.toml" -Destination "$distDir/config.example.toml"
-          Copy-Item "README.md" -Destination "$distDir/README.md"
+          # 3. 复制 x64 产物并打包
+          $x64Exe = "NetTrigger-${version}-windows-x64.exe"
+          $x64Zip = "NetTrigger-${version}-windows-x64-portable.zip"
+          Copy-Item "target/x86_64-pc-windows-msvc/release/NetTrigger.exe" -Destination $x64Exe
           
-          # 4. 压缩为便携 Zip 压缩包（命名带版本号）
-          $zipName = "NetTrigger-${version}-windows-x64-portable.zip"
-          Compress-Archive -Path "$distDir/NetTrigger.exe", "$distDir/config.example.toml", "$distDir/README.md" -DestinationPath $zipName -Force
+          $x64TempDir = "temp_x64"
+          New-Item -ItemType Directory -Force -Path $x64TempDir | Out-Null
+          Copy-Item "target/x86_64-pc-windows-msvc/release/NetTrigger.exe" -Destination "$x64TempDir/NetTrigger.exe"
+          Copy-Item "config.example.toml" -Destination "$x64TempDir/config.example.toml"
+          Copy-Item "README.md" -Destination "$x64TempDir/README.md"
+          Compress-Archive -Path "$x64TempDir/*" -DestinationPath $x64Zip -Force
           
-          # 5. 单独的绿色单文件可执行程序重命名为带版本号的独立产物
-          $standaloneExe = "NetTrigger-${version}-windows-x64.exe"
-          Copy-Item "target/release/NetTrigger.exe" -Destination $standaloneExe
+          # 4. 复制 x86 (32位) 产物并打包
+          $x86Exe = "NetTrigger-${version}-windows-x86.exe"
+          $x86Zip = "NetTrigger-${version}-windows-x86-portable.zip"
+          Copy-Item "target/i686-pc-windows-msvc/release/NetTrigger.exe" -Destination $x86Exe
           
-          # 6. 获取安装包文件名
+          $x86TempDir = "temp_x86"
+          New-Item -ItemType Directory -Force -Path $x86TempDir | Out-Null
+          Copy-Item "target/i686-pc-windows-msvc/release/NetTrigger.exe" -Destination "$x86TempDir/NetTrigger.exe"
+          Copy-Item "config.example.toml" -Destination "$x86TempDir/config.example.toml"
+          Copy-Item "README.md" -Destination "$x86TempDir/README.md"
+          Compress-Archive -Path "$x86TempDir/*" -DestinationPath $x86Zip -Force
+          
+          # 5. 获取安装包文件名 (x64)
           $setupExe = (Get-ChildItem -Path $distDir -Filter "*Setup.exe" | Select-Object -First 1).Name
           
-          # 7. 生成所有产物的 SHA256 校验和
+          # 6. 生成所有产物的 SHA256 校验和
           $setupHash = (Get-FileHash "$distDir/$setupExe" -Algorithm SHA256).Hash
-          $exeHash = (Get-FileHash $standaloneExe -Algorithm SHA256).Hash
-          $zipHash = (Get-FileHash $zipName -Algorithm SHA256).Hash
+          $x64ExeHash = (Get-FileHash $x64Exe -Algorithm SHA256).Hash
+          $x64ZipHash = (Get-FileHash $x64Zip -Algorithm SHA256).Hash
+          $x86ExeHash = (Get-FileHash $x86Exe -Algorithm SHA256).Hash
+          $x86ZipHash = (Get-FileHash $x86Zip -Algorithm SHA256).Hash
           
           $checksumContent = @"
           $setupHash  $setupExe
-          $exeHash  $standaloneExe
-          $zipHash  $zipName
+          $x64ExeHash  $x64Exe
+          $x64ZipHash  $x64Zip
+          $x86ExeHash  $x86Exe
+          $x86ZipHash  $x86Zip
           "@
           Set-Content -Path "checksums.txt" -Value $checksumContent
           
           Write-Host "打包成功:"
           Write-Host "$setupExe SHA256: $setupHash"
-          Write-Host "$standaloneExe SHA256: $exeHash"
-          Write-Host "$zipName SHA256: $zipHash"
+          Write-Host "$x64Exe SHA256: $x64ExeHash"
+          Write-Host "$x64Zip SHA256: $x64ZipHash"
+          Write-Host "$x86Exe SHA256: $x86ExeHash"
+          Write-Host "$x86Zip SHA256: $x86ZipHash"
 
       - name: 创建 GitHub Release 并上传附件
         uses: softprops/action-gh-release@v2
@@ -100,4 +120,6 @@ jobs:
             dist/*Setup.exe
             NetTrigger-v*-windows-x64.exe
             NetTrigger-v*-windows-x64-portable.zip
+            NetTrigger-v*-windows-x86.exe
+            NetTrigger-v*-windows-x86-portable.zip
             checksums.txt

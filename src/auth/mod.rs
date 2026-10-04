@@ -2,7 +2,6 @@ pub mod browser;
 pub mod http_client;
 
 use crate::config::{Config, MacroContext};
-use std::time::Duration;
 pub use browser::{open_browser_portal, BrowserError};
 pub use http_client::{execute_http_auth, AuthResult};
 
@@ -15,33 +14,47 @@ impl AuthExecutor {
     /// 自动根据配置的 mode ("browser" / "http") 派发执行：
     /// - "browser" (自动打开网页登录·有弹窗)：无需用户名密码，掉线时唤起浏览器由已保存密码自动登录；
     /// - "http" (后台静默登录·无弹窗)：根据配置后台静默发包，打游戏不弹窗不切屏。
-    pub fn execute(config: &Config) -> AuthResult {
+    pub fn execute(config: &Config, detected_portal_url: Option<&str>) -> AuthResult {
         let mode = config.auth.mode.to_lowercase();
 
         if mode == "browser" {
-            let portal_url = config.auth.portal_url.trim();
-            if portal_url.is_empty() {
+            let configured_url = config.auth.portal_url.trim();
+
+            let target_url = if let Some(url) = detected_portal_url {
+                if !url.trim().is_empty() {
+                    url.trim()
+                } else if !configured_url.is_empty() {
+                    configured_url
+                } else {
+                    ""
+                }
+            } else if !configured_url.is_empty() {
+                configured_url
+            } else {
+                ""
+            };
+
+            if target_url.is_empty() {
                 return AuthResult::fail(0, "未配置登录网页网址 (portal_url)".to_string());
             }
 
-            // 1. 先尝试一次超轻量静默 GET 访问 (很多网关有 MAC 快速免密或 Cookie 续期机制，只要访问一次即自动放行)
-            let silent_touch = ureq::builder()
-                .timeout_connect(Duration::from_millis(1500))
-                .timeout_read(Duration::from_millis(2000))
-                .redirects(2)
-                .build()
-                .get(portal_url)
-                .call();
-
-            if let Ok(resp) = silent_touch {
-                if resp.status() == 200 || resp.status() == 204 {
-                    // 静默访问成功触发了后端放行逻辑
-                    return AuthResult::ok(resp.status(), "已静默访问登录网址触发认证".to_string());
+            // 防踩坑自愈：若网址中带有 success.jsp（用户误填了登录成功页），直接访问会导致校园网报“原ip与当前用户不一致”
+            // 此时自动净化为网关探测入口或捕获到的最新网关地址，由校园网网关自动携当前动态 IP 重定向到真实登录页
+            let final_url = if target_url.contains("success.jsp") {
+                if let Some(url) = detected_portal_url {
+                    if !url.trim().is_empty() && !url.contains("success.jsp") {
+                        url.trim()
+                    } else {
+                        "http://123.123.123.123/"
+                    }
+                } else {
+                    "http://123.123.123.123/"
                 }
-            }
+            } else {
+                target_url
+            };
 
-            // 2. 若静默访问未直接放行，则唤起默认浏览器，由浏览器记住的密码自动登录
-            match open_browser_portal(portal_url, true, true) {
+            match open_browser_portal(final_url, true, true) {
                 Ok(_) => AuthResult::ok(200, "已唤起浏览器登录页面，由浏览器自动填充密码登录".to_string()),
                 Err(err) => AuthResult::fail(0, format!("唤起浏览器失败: {}", err)),
             }
@@ -55,7 +68,14 @@ impl AuthExecutor {
 
             // 若 HTTP 模拟认证失败且显式允许了浏览器兜底
             if !result.success && config.general.allow_browser_fallback {
-                let _ = open_browser_portal(&config.auth.portal_url, true, false);
+                let fallback_url = detected_portal_url
+                    .filter(|u| !u.trim().is_empty() && !u.contains("success.jsp"))
+                    .unwrap_or(if !config.auth.portal_url.contains("success.jsp") && !config.auth.portal_url.is_empty() {
+                        &config.auth.portal_url
+                    } else {
+                        "http://123.123.123.123/"
+                    });
+                let _ = open_browser_portal(fallback_url, true, false);
             }
 
             result
@@ -73,8 +93,29 @@ mod tests {
         cfg.auth.mode = "browser".to_string();
         cfg.auth.portal_url = "".to_string();
 
-        let res = AuthExecutor::execute(&cfg);
+        let res = AuthExecutor::execute(&cfg, None);
         assert!(!res.success);
         assert!(res.message.contains("未配置"));
+    }
+
+    #[test]
+    fn test_auth_executor_browser_mode_success_jsp_sanitized() {
+        let mut cfg = Config::default();
+        cfg.auth.mode = "browser".to_string();
+        cfg.auth.portal_url = "http://10.10.200.102/eportal/success.jsp?userIndex=123".to_string();
+
+        let res = AuthExecutor::execute(&cfg, None);
+        // Should succeed in invoking browser with fallback rather than failing
+        assert!(res.success);
+    }
+
+    #[test]
+    fn test_auth_executor_browser_mode_prefers_detected_url() {
+        let mut cfg = Config::default();
+        cfg.auth.mode = "browser".to_string();
+        cfg.auth.portal_url = "http://10.10.200.102/eportal/success.jsp?userIndex=123".to_string();
+
+        let res = AuthExecutor::execute(&cfg, Some("http://10.10.200.102/eportal/index.jsp?wlanuserip=10.0.0.1"));
+        assert!(res.success);
     }
 }

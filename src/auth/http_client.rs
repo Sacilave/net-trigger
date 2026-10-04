@@ -128,6 +128,10 @@ pub fn execute_http_auth(
                 || snippet_lower.contains("账号不存在")
                 || snippet_lower.contains("欠费")
                 || snippet_lower.contains("flow over")
+                || snippet_lower.contains("\"result\":\"fail\"")
+                || snippet_lower.contains("\"result\": \"fail\"")
+                || snippet_lower.contains("原ip与当前用户不一致")
+                || snippet_lower.contains("设备未注册")
             {
                 AuthResult::fail(code, format!("网关拒绝认证: {}", snippet.trim()))
             } else {

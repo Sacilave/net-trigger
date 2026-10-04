@@ -209,14 +209,9 @@ fn main() {
                     }
                 }
                 TrayAction::OpenPortal => {
-                    // 核心逻辑：优先实时重新从磁盘获取最新 portal_url
-                    let latest_cfg = config::Config::load_or_create()
-                        .map(|(c, _)| c)
-                        .unwrap_or_else(|_| fsm.config().clone());
-                    let portal_url = latest_cfg.auth.portal_url.trim();
-                    if !portal_url.is_empty() {
-                        let _ = auth::browser::open_browser_portal(portal_url, true, true);
-                    }
+                    // 核心逻辑：优先使用状态机捕获到的网关真实认证重定向地址或净化后的入口，彻底杜绝 success.jsp 报“原ip与当前用户不一致”
+                    let portal_url = fsm.get_effective_portal_url();
+                    let _ = auth::browser::open_browser_portal(&portal_url, true, true);
                 }
                 TrayAction::OpenWebConfig => {
                     let latest_cfg = config::Config::load_or_create()

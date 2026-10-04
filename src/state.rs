@@ -63,6 +63,8 @@ pub struct StateMachine {
     last_state_change: Instant,
     backoff_until: Option<Instant>,
     last_message: String,
+    last_detected_portal_url: Option<String>,
+    last_browser_open_at: Option<Instant>,
 }
 
 impl StateMachine {
@@ -79,6 +81,8 @@ impl StateMachine {
             last_state_change: Instant::now(),
             backoff_until: None,
             last_message: "系统已启动".to_string(),
+            last_detected_portal_url: None,
+            last_browser_open_at: None,
         }
     }
 
@@ -97,6 +101,26 @@ impl StateMachine {
         self.probe = Probe::new(&new_config.probe);
         self.config = new_config;
         self.last_message = "配置已动态重载".to_string();
+    }
+
+    /// 获取最近一次探针拦截捕获到的网关真实认证重定向地址
+    pub fn last_detected_portal_url(&self) -> Option<&str> {
+        self.last_detected_portal_url.as_deref()
+    }
+
+    /// 获取当前最可靠的登录网址 (优先使用网关动态返回的真实地址，彻底规避 success.jsp 与 IP 漂移)
+    pub fn get_effective_portal_url(&self) -> String {
+        if let Some(ref detected) = self.last_detected_portal_url {
+            if !detected.trim().is_empty() && !detected.contains("success.jsp") {
+                return detected.trim().to_string();
+            }
+        }
+        let configured = self.config.auth.portal_url.trim();
+        if !configured.is_empty() && !configured.contains("success.jsp") && !configured.contains("example.") {
+            configured.to_string()
+        } else {
+            "http://123.123.123.123/".to_string()
+        }
     }
 
     /// 获取状态机运行状态快照
@@ -137,20 +161,26 @@ impl StateMachine {
                 // 互联网完全畅通，重置所有退避与失败计数器
                 self.consecutive_failures = 0;
                 self.backoff_until = None;
+                self.last_browser_open_at = None;
                 self.transition_to(
                     NetworkState::Online,
                     format!("网络已连接 (延迟: {}ms)", self.latency_ms),
                 );
             }
             ProbeStatus::CaptivePortal { redirect_url } => {
-                // 智能自动捕获：若网关返回了真实认证地址，且当前用户尚未配置或为占位地址，自动自愈采纳
+                // 智能自动捕获：若网关返回了真实认证地址，且当前用户尚未配置或为占位地址或受污染的 success.jsp，自动自愈采纳
                 if let Some(ref detected_url) = redirect_url {
+                    if !detected_url.is_empty() {
+                        self.last_detected_portal_url = Some(detected_url.clone());
+                    }
                     let cur_portal = self.config.auth.portal_url.trim();
-                    let is_empty_or_default = cur_portal.is_empty()
+                    let is_empty_or_default_or_stale = cur_portal.is_empty()
                         || cur_portal.contains("10.0.0.55")
-                        || cur_portal.contains("example.com");
+                        || cur_portal.contains("example.com")
+                        || cur_portal.contains("example.edu")
+                        || cur_portal.contains("success.jsp");
 
-                    if is_empty_or_default && !detected_url.is_empty() {
+                    if is_empty_or_default_or_stale && !detected_url.is_empty() {
                         self.config.auth.portal_url = detected_url.clone();
                         let cfg_to_save = self.config.clone();
                         std::thread::spawn(move || {
@@ -194,8 +224,29 @@ impl StateMachine {
         };
         self.transition_to(NetworkState::Authenticating, action_desc.to_string());
 
-        // 执行认证
-        let _auth_result: AuthResult = AuthExecutor::execute(&self.config);
+        let detected_url = self.last_detected_portal_url.as_deref();
+
+        // 浏览器模式下防频繁重复弹窗切屏：
+        // 若在最近 30 秒内已经唤起过浏览器窗口，且正处于退避等待中，避免频繁重复弹窗切屏
+        let should_skip_browser_open = if is_browser_mode {
+            if let Some(opened_at) = self.last_browser_open_at {
+                opened_at.elapsed() < Duration::from_secs(30) && self.consecutive_failures > 0
+            } else {
+                false
+            }
+        } else {
+            false
+        };
+
+        let _auth_result: AuthResult = if should_skip_browser_open {
+            AuthResult::ok(200, "等待用户在已打开的网页中完成登录...".to_string())
+        } else {
+            let res = AuthExecutor::execute(&self.config, detected_url);
+            if is_browser_mode && res.success {
+                self.last_browser_open_at = Some(Instant::now());
+            }
+            res
+        };
 
         if is_browser_mode {
             // 网页自动登录模式下，给浏览器 1.5 秒启动、自动填充与提交时间，避免 0ms 瞬间误判失败
@@ -209,6 +260,7 @@ impl StateMachine {
         if verify_report.status.is_online() {
             self.consecutive_failures = 0;
             self.backoff_until = None;
+            self.last_browser_open_at = None;
             self.transition_to(
                 NetworkState::Online,
                 format!("网络连接成功！(延迟: {}ms)", self.latency_ms),
@@ -240,6 +292,7 @@ impl StateMachine {
     pub fn on_network_changed(&mut self) -> NetworkState {
         self.consecutive_failures = 0;
         self.backoff_until = None;
+        self.last_browser_open_at = None;
         self.last_message = "网络已变动，立即重新检测...".to_string();
         self.step_probe()
     }
@@ -262,6 +315,7 @@ impl StateMachine {
     pub fn on_user_manual_trigger(&mut self) -> NetworkState {
         self.consecutive_failures = 0;
         self.backoff_until = None;
+        self.last_browser_open_at = None;
         self.last_message = "用户手动触发网络检测".to_string();
         self.step_probe()
     }
@@ -331,5 +385,24 @@ mod tests {
         fsm.on_network_changed();
         assert_eq!(fsm.consecutive_failures, 0);
         assert!(fsm.backoff_until.is_none());
+    }
+
+    #[test]
+    fn test_get_effective_portal_url_sanitizes_success_jsp() {
+        let mut config = Config::default();
+        config.auth.portal_url = "http://10.10.200.102/eportal/success.jsp?userIndex=abc".to_string();
+        let fsm = StateMachine::new(config);
+
+        assert_eq!(fsm.get_effective_portal_url(), "http://123.123.123.123/");
+    }
+
+    #[test]
+    fn test_get_effective_portal_url_uses_detected_url() {
+        let mut config = Config::default();
+        config.auth.portal_url = "http://10.10.200.102/eportal/success.jsp?userIndex=abc".to_string();
+        let mut fsm = StateMachine::new(config);
+        fsm.last_detected_portal_url = Some("http://10.10.200.102/eportal/index.jsp?wlanuserip=1.2.3.4".to_string());
+
+        assert_eq!(fsm.get_effective_portal_url(), "http://10.10.200.102/eportal/index.jsp?wlanuserip=1.2.3.4");
     }
 }

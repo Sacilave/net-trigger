@@ -627,9 +627,10 @@
         <div class="form-group">
           <label for="portal_url" id="lbl-portal-url">校园网 / 认证登录网址</label>
           <input type="text" id="portal_url" placeholder="例如: http://10.10.1.1/ 或 http://portal.univ.edu/">
+          <div id="warn-portal-url" style="display:none; margin-top: 6px; padding: 10px 14px; background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.35); border-radius: 8px; font-size: 12.5px; color: #fca5a5; line-height: 1.5;"></div>
           <div class="help-text" id="txt-browser-help">
             检测到掉线或拦截时，将自动调用系统浏览器打开该网址（会有前台弹窗/切屏），由浏览器记住的密码完成登录。<br>
-            <b>无需在此填写任何账号和密码</b>。
+            <b>无需在此填写任何账号和密码；若不确定具体网址可直接留空，掉线时程序将全自动动态捕获最新登录页！</b>
           </div>
         </div>
       </div>
@@ -639,6 +640,7 @@
         <div class="form-group">
           <label for="action_url" id="lbl-action-url">登录网址</label>
           <input type="text" id="action_url" placeholder="例如: http://10.10.1.1/api/login 或认证放行网址">
+          <div id="warn-action-url" style="display:none; margin-top: 6px; padding: 10px 14px; background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.35); border-radius: 8px; font-size: 12.5px; color: #fca5a5; line-height: 1.5;"></div>
         </div>
 
         <div class="row">
@@ -1315,6 +1317,31 @@ My campus network information:
         }
       }
       document.getElementById('extra_params').value = extras.join('&');
+
+      checkSuccessJspWarning(document.getElementById('portal_url').value, 'warn-portal-url');
+      checkSuccessJspWarning(document.getElementById('action_url').value, 'warn-action-url');
+
+      const elPortalIn = document.getElementById('portal_url');
+      if (elPortalIn && !elPortalIn._hasWarnListener) {
+        elPortalIn.addEventListener('input', (e) => checkSuccessJspWarning(e.target.value, 'warn-portal-url'));
+        elPortalIn._hasWarnListener = true;
+      }
+      const elActionIn = document.getElementById('action_url');
+      if (elActionIn && !elActionIn._hasWarnListener) {
+        elActionIn.addEventListener('input', (e) => checkSuccessJspWarning(e.target.value, 'warn-action-url'));
+        elActionIn._hasWarnListener = true;
+      }
+    }
+
+    function checkSuccessJspWarning(url, warnElId) {
+      const el = document.getElementById(warnElId);
+      if (!el) return;
+      if (url && url.includes('success.jsp')) {
+        el.style.display = 'block';
+        el.innerHTML = '⚠️ <b>检测到包含 success.jsp（登录成功展示页）</b>：该地址内嵌了临时过期的内网 IP 与会话参数，直接访问会导致校园网报『原 IP 与当前用户不一致』。<br><b>💡 推荐做法</b>：请直接<b>留空</b>（NetTrigger 掉线时会全自动捕获带你最新 IP 的真实登录入口），或者填入校园网主页（如 <code>http://10.10.200.102/</code> 或 <code>http://123.123.123.123/</code>）。';
+      } else {
+        el.style.display = 'none';
+      }
     }
 
     function switchMode(mode) {
@@ -1423,10 +1450,6 @@ My campus network information:
     }
 
     async function saveSettings() {
-      if (isSessionExpired) {
-        handleSessionTimeout(true);
-        return;
-      }
       const payload = collectPayload();
       const t = I18N[currentLang];
       const btn = document.getElementById('btn-save');
@@ -1439,6 +1462,15 @@ My campus network information:
           body: JSON.stringify(payload)
         });
         if (res.ok) {
+          isSessionExpired = false;
+          const banner = document.getElementById('timeout-banner');
+          if (banner) banner.style.display = 'none';
+          const pill = document.querySelector('.status-pill');
+          if (pill) {
+            pill.classList.remove('dormant');
+            const elStatus = document.getElementById('header-status');
+            if (elStatus) elStatus.innerText = t.status;
+          }
           showNotice(t.save_success, 'success');
           resetSessionTimer();
         } else {
@@ -1452,10 +1484,6 @@ My campus network information:
     }
 
     async function testConnection() {
-      if (isSessionExpired) {
-        handleSessionTimeout(true);
-        return;
-      }
       const payload = collectPayload();
       const t = I18N[currentLang];
       const span = document.getElementById('btn-test-txt');
@@ -1467,6 +1495,15 @@ My campus network information:
           body: JSON.stringify(payload)
         });
         const r = await res.json();
+        isSessionExpired = false;
+        const banner = document.getElementById('timeout-banner');
+        if (banner) banner.style.display = 'none';
+        const pill = document.querySelector('.status-pill');
+        if (pill) {
+          pill.classList.remove('dormant');
+          const elStatus = document.getElementById('header-status');
+          if (elStatus) elStatus.innerText = t.status;
+        }
         if (r.success) {
           showNotice(`${t.test_ok} (HTTP ${r.status_code})：${r.message}`, 'success');
           resetSessionTimer();
