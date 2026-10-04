@@ -4,7 +4,7 @@
 
 **A native, ultra-lightweight (RAM < 2MB), event-driven network status keeper and captive portal auto-reconnect engine designed for Windows.**
 
-[![Release](https://img.shields.io/badge/Release-v1.2.0-blue.svg)](https://github.com/Sacilave/net-trigger/releases)
+[![Release](https://img.shields.io/badge/Release-v1.2.1-blue.svg)](https://github.com/Sacilave/net-trigger/releases)
 [![License](https://img.shields.io/badge/License-CC%20BY--NC%204.0-red.svg)](./LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Windows%2010%20%2F%2011-blue.svg)]()
 [![Memory](https://img.shields.io/badge/RAM-%3C%201.9%20MB-brightgreen.svg)]()
@@ -41,9 +41,9 @@ You can directly download the latest release files below:
 
 | Distribution | Target File | Direct Download Link | Best For | Features |
 | :--- | :--- | :--- | :--- | :--- |
-| **Portable Standalone Binary (Recommended ⭐)** | **`NetTrigger-v1.2.0-windows-x64.exe`** | [**Direct Download**](https://github.com/Sacilave/net-trigger/releases/download/v1.2.0/NetTrigger-v1.2.0-windows-x64.exe) | Most Windows 10/11 x64 users | **Single file only ~1.88MB**, zero installation needed, extract and run anywhere. |
-| **Full Portable Zip Package** | **`NetTrigger-v1.2.0-windows-x64-portable.zip`** | [**Direct Download**](https://github.com/Sacilave/net-trigger/releases/download/v1.2.0/NetTrigger-v1.2.0-windows-x64-portable.zip) | Users wanting binary + config template + docs | Contains `NetTrigger.exe`, `config.example.toml` template, and documentation bundled together. |
-| **32-Bit Windows Compatibility** | **`NetTrigger-v1.2.0-windows-x86.exe`** | [**Direct Download**](https://github.com/Sacilave/net-trigger/releases/download/v1.2.0/NetTrigger-v1.2.0-windows-x86.exe) | Legacy 32-bit Windows devices | Lightweight standalone binary for 32-bit environments. |
+| **Portable Standalone Binary (Recommended ⭐)** | **`NetTrigger-v1.2.1-windows-x64.exe`** | [**Direct Download**](https://github.com/Sacilave/net-trigger/releases/download/v1.2.1/NetTrigger-v1.2.1-windows-x64.exe) | Most Windows 10/11 x64 users | **Single file only ~1.88MB**, zero installation needed, extract and run anywhere. |
+| **Full Portable Zip Package** | **`NetTrigger-v1.2.1-windows-x64-portable.zip`** | [**Direct Download**](https://github.com/Sacilave/net-trigger/releases/download/v1.2.1/NetTrigger-v1.2.1-windows-x64-portable.zip) | Users wanting binary + config template + docs | Contains `NetTrigger.exe`, `config.example.toml` template, and documentation bundled together. |
+| **32-Bit Windows Compatibility** | **`NetTrigger-v1.2.1-windows-x86.exe`** | [**Direct Download**](https://github.com/Sacilave/net-trigger/releases/download/v1.2.1/NetTrigger-v1.2.1-windows-x86.exe) | Legacy 32-bit Windows devices | Lightweight standalone binary for 32-bit environments. |
 
 > 📌 **Download Tips**:
 > 1. For complete historical versions and detailed changelogs, visit [GitHub Releases](https://github.com/Sacilave/net-trigger/releases);
