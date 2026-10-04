@@ -116,10 +116,26 @@ impl StateMachine {
             }
         }
         let configured = self.config.auth.portal_url.trim();
-        if !configured.is_empty() && !configured.contains("success.jsp") && !configured.contains("example.") {
+        if !configured.is_empty()
+            && !configured.contains("success.jsp")
+            && !configured.contains("example.")
+            && configured != "http://10.10.200.102/"
+            && configured != "http://10.10.200.102"
+        {
+            // 防踩坑：如果配置的 URL 带有静态旧参数（如旧的 wlanuserip=），会导致校园网网关报“原ip与当前用户不一致”
+            if configured.contains("wlanuserip=") {
+                if let Some(fresh_url) = crate::auth::http_client::get_fresh_ruijie_portal_url() {
+                    return fresh_url;
+                }
+                return "http://123.123.123.123/".to_string();
+            }
             configured.to_string()
         } else {
-            "http://123.123.123.123/".to_string()
+            if let Some(fresh_url) = crate::auth::http_client::get_fresh_ruijie_portal_url() {
+                fresh_url
+            } else {
+                "http://123.123.123.123/".to_string()
+            }
         }
     }
 

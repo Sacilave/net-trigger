@@ -139,8 +139,8 @@ impl Probe {
                             }
                         }
 
-                        // 2.2 纯 IP 直连外网探测 (彻底规避 DNS 阻断，捕获校园网 AC 对 80 端口的 302 劫持)
-                        for ip_target in &["http://123.123.123.123/", "http://1.1.1.1/"] {
+                        // 2.2 纯 IP 直连外网探测 (彻底规避 DNS 阻断，捕获校园网 AC 硬件对 80 端口的 302 劫持与完整动态重定向 URL)
+                        for ip_target in &["http://1.1.1.1/", "http://123.123.123.123/"] {
                             if let Ok(ip_status) = self.probe_endpoint(ip_target, true) {
                                 let latency_ms = start.elapsed().as_millis() as u64;
                                 return ProbeReport {

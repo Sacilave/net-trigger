@@ -206,6 +206,83 @@ fn serde_json_to_string(map: &BTreeMap<String, String>) -> Result<String, std::f
     Ok(out)
 }
 
+/// 从局域网物理网卡向指定外网 IP 发起轻量探测，捕获校园网 AC 硬件返回的 302 重定向认证地址
+pub fn fetch_portal_redirect_via_lan(target_ip: &str) -> Option<String> {
+    use std::io::{Read, Write};
+    let mut stream = connect_lan_bound_tcp(target_ip, 80, 2000).ok()?;
+    let req_str = format!(
+        "GET / HTTP/1.1\r\nHost: {}\r\nUser-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64)\r\nConnection: close\r\n\r\n",
+        target_ip
+    );
+    stream.write_all(req_str.as_bytes()).ok()?;
+
+    let mut response_bytes = Vec::new();
+    let mut buf = [0u8; 1024];
+    while let Ok(n) = stream.read(&mut buf) {
+        if n == 0 {
+            break;
+        }
+        response_bytes.extend_from_slice(&buf[..n]);
+        if response_bytes.len() > 8192 {
+            break;
+        }
+    }
+
+    let resp_str = String::from_utf8_lossy(&response_bytes);
+
+    // 1. 优先提取 HTTP 30x Location 响应头 (包含当前动态 wlanuserip 与 nasip 等)
+    for line in resp_str.lines() {
+        let trimmed = line.trim();
+        if let Some(loc) = trimmed.strip_prefix("Location: ") {
+            return Some(loc.trim().to_string());
+        }
+        if let Some(loc) = trimmed.strip_prefix("location: ") {
+            return Some(loc.trim().to_string());
+        }
+    }
+
+    // 2. 备选提取 HTML 中的重定向脚本/标签: location.href="http://..." 或 <meta url=...>
+    if let Some(pos) = resp_str.find("http://") {
+        let remainder = &resp_str[pos..];
+        let end_idx = remainder
+            .find(|c| c == '\'' || c == '"' || c == '\r' || c == '\n' || c == '<' || c == '>')
+            .unwrap_or(remainder.len());
+        let candidate = &remainder[..end_idx];
+        if candidate.contains("eportal") || candidate.contains("index.jsp") {
+            return Some(candidate.to_string());
+        }
+    }
+
+    None
+}
+
+/// 实时探测局域网并获取最新的动态 queryString (如 wlanuserip=...&wlanacname=...)
+pub fn get_fresh_ruijie_query_string() -> Option<String> {
+    for target in &["1.1.1.1", "123.123.123.123"] {
+        if let Some(url) = fetch_portal_redirect_via_lan(target) {
+            if let Some(q_pos) = url.find('?') {
+                let qs = &url[q_pos + 1..];
+                if !qs.is_empty() {
+                    return Some(qs.to_string());
+                }
+            }
+        }
+    }
+    None
+}
+
+/// 实时探测局域网并获取最新的动态登录页面 URL
+pub fn get_fresh_ruijie_portal_url() -> Option<String> {
+    for target in &["1.1.1.1", "123.123.123.123"] {
+        if let Some(url) = fetch_portal_redirect_via_lan(target) {
+            if url.contains("eportal") || url.contains("index.jsp") {
+                return Some(url);
+            }
+        }
+    }
+    None
+}
+
 /// 针对锐捷 RG-SAM+ / eportal 校园网的专属后台静默登录处理器
 pub fn execute_ruijie_sam_auth(
     action_url: &str,
@@ -233,7 +310,23 @@ pub fn execute_ruijie_sam_auth(
         );
     }
 
-    let query_string = params.get("queryString").cloned().unwrap_or_default();
+    let mut query_string = params.get("queryString").cloned().unwrap_or_default();
+    if let Some(q_pos) = query_string.find('?') {
+        query_string = query_string[q_pos + 1..].to_string();
+    }
+
+    // 核心自动自愈：若 queryString 为空，直接通过物理局域网网卡发起极速 302 拦截探测，动态获取最新的真实 queryString
+    if query_string.is_empty() {
+        if let Some(fresh_qs) = get_fresh_ruijie_query_string() {
+            query_string = fresh_qs;
+        } else if let Some(q_pos) = action_url.find('?') {
+            let qs = &action_url[q_pos + 1..];
+            if !qs.is_empty() {
+                query_string = qs.to_string();
+            }
+        }
+    }
+
     let service = params.get("service").cloned().unwrap_or_default();
     let operator_pwd = params.get("operatorPwd").cloned().unwrap_or_default();
     let operator_user_id = params.get("operatorUserId").cloned().unwrap_or_default();
@@ -243,20 +336,25 @@ pub fn execute_ruijie_sam_auth(
         .cloned()
         .unwrap_or_else(|| "false".to_string());
 
-    // 锐捷 SAM+ 前端必须进行双重 URL 编码 (Double URL Encoding)
-    fn enc2(input: &str) -> String {
-        urlencoding_encode(&urlencoding_encode(input))
-    }
+    let enc_username = urlencoding_encode(&username);
+    let enc_password = urlencoding_encode(&password);
+    let enc_service = urlencoding_encode(&service);
+    let enc_operator_pwd = urlencoding_encode(&operator_pwd);
+    let enc_operator_user_id = urlencoding_encode(&operator_user_id);
+    let enc_validcode = urlencoding_encode(&validcode);
+
+    // 锐捷 SAM+ 的 queryString 必须进行双重 URL 编码（%2526 与 %253D），防止 & 与 = 被 HTTP 表单解析器错误拆解
+    let enc_query_string_double = urlencoding_encode(&urlencoding_encode(&query_string));
 
     let body = format!(
         "userId={}&password={}&service={}&queryString={}&operatorPwd={}&operatorUserId={}&validcode={}&passwordEncrypt={}",
-        enc2(&username),
-        enc2(&password),
-        enc2(&service),
-        enc2(&query_string),
-        enc2(&operator_pwd),
-        enc2(&operator_user_id),
-        enc2(&validcode),
+        enc_username,
+        enc_password,
+        enc_service,
+        enc_query_string_double,
+        enc_operator_pwd,
+        enc_operator_user_id,
+        enc_validcode,
         if password_encrypt == "true" { "true" } else { "false" }
     );
 
@@ -276,6 +374,32 @@ pub fn execute_ruijie_sam_auth(
             {
                 let err_msg = extract_json_field(&resp_str, "message")
                     .unwrap_or_else(|| "认证失败，请检查账号密码".to_string());
+
+                // 兼容性自愈：部分老版本网关期望单重编码 queryString，若返回参数相关错误，自动单重编码重试一次
+                if err_msg.contains("queryString") || err_msg.contains("参数") || err_msg.contains("为空") {
+                    let enc_query_string_single = urlencoding_encode(&query_string);
+                    let body_single = format!(
+                        "userId={}&password={}&service={}&queryString={}&operatorPwd={}&operatorUserId={}&validcode={}&passwordEncrypt={}",
+                        enc_username,
+                        enc_password,
+                        enc_service,
+                        enc_query_string_single,
+                        enc_operator_pwd,
+                        enc_operator_user_id,
+                        enc_validcode,
+                        if password_encrypt == "true" { "true" } else { "false" }
+                    );
+                    if let Ok(retry_resp) = send_bound_http_post(&host, port, &path, &body_single, headers) {
+                        if retry_resp.contains("\"result\":\"success\"")
+                            || retry_resp.contains("\"result\": \"success\"")
+                            || retry_resp.contains("用户在线")
+                            || retry_resp.contains("已在线")
+                        {
+                            return AuthResult::ok(200, "锐捷 SAM+ 校园网后台静默登录成功 (单重编码通道)！".to_string());
+                        }
+                    }
+                }
+
                 AuthResult::fail(200, format!("网关拒绝登录: {}", err_msg))
             } else {
                 AuthResult::ok(200, "认证报文已发送".to_string())
@@ -580,5 +704,18 @@ mod tests {
         let res = execute_ruijie_sam_auth("http://10.10.200.102/eportal/InterFace.do?method=login", &params, &BTreeMap::new());
         assert!(!res.success);
         assert!(res.message.contains("未配置校园网密码"));
+    }
+
+    #[test]
+    fn test_ruijie_sam_query_string_cleaning() {
+        let mut qs = "?wlanuserip=1.2.3.4&wlanacname=test";
+        if let Some(pos) = qs.find('?') {
+            qs = &qs[pos + 1..];
+        }
+        assert_eq!(qs, "wlanuserip=1.2.3.4&wlanacname=test");
+
+        let enc_double = urlencoding_encode(&urlencoding_encode(qs));
+        assert!(enc_double.contains("%253D"));
+        assert!(enc_double.contains("%2526"));
     }
 }

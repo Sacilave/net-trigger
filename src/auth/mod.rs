@@ -38,23 +38,26 @@ impl AuthExecutor {
                 return AuthResult::fail(0, "未配置登录网页网址 (portal_url)".to_string());
             }
 
-            // 防踩坑自愈：若网址中带有 success.jsp（用户误填了登录成功页），直接访问会导致校园网报“原ip与当前用户不一致”
-            // 此时自动净化为网关探测入口或捕获到的最新网关地址，由校园网网关自动携当前动态 IP 重定向到真实登录页
-            let final_url = if target_url.contains("success.jsp") {
-                if let Some(url) = detected_portal_url {
-                    if !url.trim().is_empty() && !url.contains("success.jsp") {
-                        url.trim()
-                    } else {
-                        "http://123.123.123.123/"
-                    }
+            // 防踩坑自愈：
+            // 1. 若网址包含 success.jsp（用户误填了登录成功页），直接访问会导致校园网报“原ip与当前用户不一致”
+            // 2. 若网址包含静态 wlanuserip= 但属于之前旧会话的参数，直接访问同样会报“原ip与当前用户不一致”
+            // 3. 若 target_url 为未带会话参数的纯根路径（如 http://10.10.200.102/）
+            // 此时自动通过局域网网卡探测或向 123.123.123.123 触发网关带当前动态真实 IP 的 302 重定向
+            let final_url = if target_url.contains("success.jsp")
+                || (target_url.contains("wlanuserip=") && detected_portal_url.is_none())
+                || target_url == "http://10.10.200.102/"
+                || target_url == "http://10.10.200.102"
+            {
+                if let Some(fresh_url) = http_client::get_fresh_ruijie_portal_url() {
+                    fresh_url
                 } else {
-                    "http://123.123.123.123/"
+                    "http://123.123.123.123/".to_string()
                 }
             } else {
-                target_url
+                target_url.to_string()
             };
 
-            match open_browser_portal(final_url, true, true) {
+            match open_browser_portal(&final_url, true, true) {
                 Ok(_) => AuthResult::ok(200, "已唤起浏览器登录页面，由浏览器自动填充密码登录".to_string()),
                 Err(err) => AuthResult::fail(0, format!("唤起浏览器失败: {}", err)),
             }
@@ -67,15 +70,35 @@ impl AuthExecutor {
             // 锐捷 RG-SAM+ / eportal 校园网智能参数自动补全：
             // 当 action_url 包含 InterFace.do 或 eportal 时，若捕获到了带有 queryString 的 portal_url 自动注入：
             if action_url.contains("InterFace.do") || action_url.contains("eportal") {
-                if !params.contains_key("queryString") {
-                    let source_url = detected_portal_url
-                        .filter(|u| !u.trim().is_empty())
-                        .unwrap_or_else(|| &config.auth.portal_url);
-                    if let Some(q_pos) = source_url.find('?') {
-                        let qs = &source_url[q_pos + 1..];
-                        if !qs.is_empty() {
-                            params.insert("queryString".to_string(), qs.to_string());
+                let has_valid_qs = params
+                    .get("queryString")
+                    .map(|s| !s.trim().is_empty())
+                    .unwrap_or(false);
+
+                if !has_valid_qs {
+                    let mut found_qs = None;
+                    if let Some(source_url) = detected_portal_url {
+                        if let Some(q_pos) = source_url.find('?') {
+                            let qs = &source_url[q_pos + 1..];
+                            if !qs.is_empty() {
+                                found_qs = Some(qs.to_string());
+                            }
                         }
+                    }
+                    if found_qs.is_none() {
+                        let cur_portal = &config.auth.portal_url;
+                        if let Some(q_pos) = cur_portal.find('?') {
+                            let qs = &cur_portal[q_pos + 1..];
+                            if !qs.is_empty() {
+                                found_qs = Some(qs.to_string());
+                            }
+                        }
+                    }
+                    if found_qs.is_none() {
+                        found_qs = http_client::get_fresh_ruijie_query_string();
+                    }
+                    if let Some(qs) = found_qs {
+                        params.insert("queryString".to_string(), qs);
                     }
                 }
                 if !params.contains_key("passwordEncrypt") {
