@@ -4,7 +4,7 @@
 
 **A native, ultra-lightweight (RAM < 2MB), event-driven network status keeper and captive portal auto-reconnect engine designed for Windows.**
 
-[![Release](https://img.shields.io/badge/Release-v1.2.4-blue.svg)](https://github.com/Sacilave/net-trigger/releases)
+[![Release](https://img.shields.io/badge/Release-v1.2.5-blue.svg)](https://github.com/Sacilave/net-trigger/releases)
 [![License](https://img.shields.io/badge/License-CC%20BY--NC%204.0-red.svg)](./LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Windows%2010%20%2F%2011-blue.svg)]()
 [![Memory](https://img.shields.io/badge/RAM-%3C%201.9%20MB-brightgreen.svg)]()
@@ -41,10 +41,10 @@ You can directly download the latest release files below:
 
 | Distribution | Target File | Direct Download Link | Best For | Features |
 | :--- | :--- | :--- | :--- | :--- |
-| **One-Click Windows Installer** | **`NetTrigger-v1.2.4-Setup.exe`** | [**Direct Download**](https://github.com/Sacilave/net-trigger/releases/download/v1.2.4/NetTrigger-v1.2.4-Setup.exe) | Users preferring standard Windows setup wizards | Clean, modern, unprivileged installer creating desktop and Start menu shortcuts with full uninstaller support. |
-| **Portable Standalone Binary (Recommended ⭐)** | **`NetTrigger-v1.2.4-windows-x64.exe`** | [**Direct Download**](https://github.com/Sacilave/net-trigger/releases/download/v1.2.4/NetTrigger-v1.2.4-windows-x64.exe) | Most Windows 10/11 x64 users | **Single file only ~2.08MB**, zero installation needed, extract and run anywhere. |
-| **Full Portable Zip Package** | **`NetTrigger-v1.2.4-windows-x64-portable.zip`** | [**Direct Download**](https://github.com/Sacilave/net-trigger/releases/download/v1.2.4/NetTrigger-v1.2.4-windows-x64-portable.zip) | Users wanting binary + config template + docs | Contains `NetTrigger.exe`, `检测更新.bat`, `config.example.toml` template, and documentation bundled together. |
-| **32-Bit Windows Compatibility** | **`NetTrigger-v1.2.4-windows-x86.exe`** | [**Direct Download**](https://github.com/Sacilave/net-trigger/releases/download/v1.2.4/NetTrigger-v1.2.4-windows-x86.exe) | Legacy 32-bit Windows devices | Lightweight standalone binary for 32-bit environments. |
+| **One-Click Windows Installer** | **`NetTrigger-v1.2.5-Setup.exe`** | [**Direct Download**](https://github.com/Sacilave/net-trigger/releases/download/v1.2.5/NetTrigger-v1.2.5-Setup.exe) | Users preferring standard Windows setup wizards | Clean, modern, unprivileged installer creating desktop and Start menu shortcuts with full uninstaller support. |
+| **Portable Standalone Binary (Recommended ⭐)** | **`NetTrigger-v1.2.5-windows-x64.exe`** | [**Direct Download**](https://github.com/Sacilave/net-trigger/releases/download/v1.2.5/NetTrigger-v1.2.5-windows-x64.exe) | Most Windows 10/11 x64 users | **Single file only ~2.08MB**, zero installation needed, extract and run anywhere. |
+| **Full Portable Zip Package** | **`NetTrigger-v1.2.5-windows-x64-portable.zip`** | [**Direct Download**](https://github.com/Sacilave/net-trigger/releases/download/v1.2.5/NetTrigger-v1.2.5-windows-x64-portable.zip) | Users wanting binary + config template + docs | Contains `NetTrigger.exe`, `检测更新.bat`, `config.example.toml` template, and documentation bundled together. |
+| **32-Bit Windows Compatibility** | **`NetTrigger-v1.2.5-windows-x86.exe`** | [**Direct Download**](https://github.com/Sacilave/net-trigger/releases/download/v1.2.5/NetTrigger-v1.2.5-windows-x86.exe) | Legacy 32-bit Windows devices | Lightweight standalone binary for 32-bit environments. |
 
 > 📌 **Download & Upgrade Tips**:
 > 1. **Zero-Overhead Updater**: Comes with `检测更新.bat` for instant update checks and one-click upgrades without adding any resident memory or CPU overhead to the daemon;
@@ -54,7 +54,7 @@ You can directly download the latest release files below:
 ### Step 2: Configure Authentication (Choose Your Mode)
 
 > 💡 **Core Tip**:
-> Campus network gateways vary widely (some enforce dynamic encryption, captcha, or anti-replay tokens). **If silent background authentication is unstable or fails to connect, simply switch to 【Browser Auto-Login】 mode**—it relies on your browser's saved passwords, ensuring the highest reliability and 100% gateway compatibility.
+> Campus network gateways vary widely. NetTrigger natively provides both **【Silent Background Auto-Login】** and **【Browser Auto-Login】** with an industry-first **Dual-Guard Fallback Mechanism** (Silent-first + 0s browser popup on first failure + background retries + instant termination when online), guaranteeing you never remain disconnected.
 
 #### Mode 1: Browser Auto-Login (Recommended · Most Reliable ⭐)
 Automatically launches your default browser upon disconnection, letting the browser auto-fill credentials:
@@ -63,12 +63,15 @@ Automatically launches your default browser upon disconnection, letting the brow
 3. Click **【Save Settings】**.
 > **Advantage**: Immune to gateway encryption, tokens, or captcha changes. If you can log in via your browser, NetTrigger will reliably work.
 
-#### Mode 2: Silent Background HTTP Authentication (No Popups)
+#### Mode 2: Silent Background HTTP Authentication (No Popups · Dual-Guard ⭐)
 Executes HTTP authentication packets quietly in the background without stealing window focus:
 1. Open **【Settings】** ➔ Switch to the **【Silent Auto-Login】** tab;
-2. Press `F12` on your browser's login page, copy the login request as cURL, and paste it into the cURL auto-importer;
+2. Press `F12` on your browser's login page, copy the login request as cURL, and paste it into the cURL auto-importer (Ruijie users can directly click "Ruijie Auto-Fill");
 3. Click **【Test Connection】** to verify gateway responses ➔ Click **【Save Settings】**.
-> **Note**: If test fails or the connection is unstable, **please switch back to 【Mode 1: Browser Auto-Login】**.
+> 🛡️ **Industry-First Dual-Guard Mechanism**:
+> - **Silent First**: Primary authentication runs completely in the background without stealing focus or interrupting full-screen games;
+> - **0s Browser Fallback on First Failure**: If silent authentication fails on the first attempt due to transient network conditions, NetTrigger **immediately opens the browser login page** so you can connect right away;
+> - **Continuous Background Retries + Instant Stop**: While the browser is open, NetTrigger continues retrying in the background. **As soon as you log in on the webpage (or 204 connectivity recovers), NetTrigger detects it within 2 seconds, instantly cancels all pending background retries, and turns the tray green**, preventing redundant requests and repeated popups!
 
 ---
 
@@ -144,6 +147,7 @@ Three optimized profiles are available in Settings with a single click:
   +------------------------------------+
   | Reconnect Now                      |  <-- Immediately triggers re-probe & reconnect
   | Open Login Portal                  |  <-- Quick browser login portal channel
+  | Diagnostic Report                  |  <-- One-click formatted diagnostic report in Notepad
   |------------------------------------|
   | Settings                           |  <-- Opens Web control center (also on left-click)
   | Language / 语言          ▶         |  <-- In-place language switch (Auto / English / 简体中文)
@@ -187,13 +191,13 @@ Requirements: Standard Rust toolchain (Edition 2021).
 git clone https://github.com/Sacilave/net-trigger.git
 cd net-trigger
 
-# 2. Run the automated test suite (36 unit and mock tests)
+# 2. Run the automated test suite (50 unit and end-to-end regression tests)
 cargo test
 
 # 3. Compile optimized release binary (with LTO, Strip, and size-optimization)
 cargo build --release
 
-# The compiled single-file binary will be located at target/release/NetTrigger.exe (~1.88 MB)
+# The compiled single-file binary will be located at target/release/NetTrigger.exe (~2.08 MB)
 ```
 
 ---

@@ -3,7 +3,7 @@
 
 #define MyAppName "NetTrigger"
 #ifndef MyAppVersion
-#define MyAppVersion "1.2.4"
+#define MyAppVersion "1.2.5"
 #endif
 #define MyAppPublisher "Sacilave"
 #define MyAppURL "https://github.com/Sacilave/net-trigger"

@@ -4,7 +4,7 @@
 
 **专为 Windows 平台打造的原生、超轻量（RAM < 2MB）、毫秒级事件响应的网络状态感知与校园网自动化重连守护引擎**
 
-[![Release](https://img.shields.io/badge/Release-v1.2.4-blue.svg)](https://github.com/Sacilave/net-trigger/releases)
+[![Release](https://img.shields.io/badge/Release-v1.2.5-blue.svg)](https://github.com/Sacilave/net-trigger/releases)
 [![License](https://img.shields.io/badge/License-CC%20BY--NC%204.0-red.svg)](./LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Windows%2010%20%2F%2011-blue.svg)]()
 [![Memory](https://img.shields.io/badge/RAM-%3C%201.9%20MB-brightgreen.svg)]()
@@ -40,10 +40,10 @@
 
 | 版本名称 | 目标文件 | 下载直链 | 适用人群 | 特点说明 |
 | :--- | :--- | :--- | :--- | :--- |
-| **一键安装向导 (新手推荐)** | **`NetTrigger-v1.2.4-Setup.exe`** | [**点击直接下载**](https://github.com/Sacilave/net-trigger/releases/download/v1.2.4/NetTrigger-v1.2.4-Setup.exe) | 习惯标准 Windows 安装向导的用户 | 现代极简免提权安装，自动创建桌面及开始菜单快捷方式，支持完整一键卸载。 |
-| **便携单文件 (极客推荐 ⭐)** | **`NetTrigger-v1.2.4-windows-x64.exe`** | [**点击直接下载**](https://github.com/Sacilave/net-trigger/releases/download/v1.2.4/NetTrigger-v1.2.4-windows-x64.exe) | 绝大多数 Windows 10/11 用户 | **单个文件仅 ~2.08MB**，无需安装，解压即用。双击直接运行，可按需创建桌面快捷方式。 |
-| **完整便携压缩包** | **`NetTrigger-v1.2.4-windows-x64-portable.zip`** | [**点击直接下载**](https://github.com/Sacilave/net-trigger/releases/download/v1.2.4/NetTrigger-v1.2.4-windows-x64-portable.zip) | 需要完整配置模板与说明文档的用户 | 压缩包内含 `NetTrigger.exe` 主程序、`检测更新.bat`、`config.example.toml` 配置模板与说明文档。 |
-| **32位兼容版** | **`NetTrigger-v1.2.4-windows-x86.exe`** | [**点击直接下载**](https://github.com/Sacilave/net-trigger/releases/download/v1.2.4/NetTrigger-v1.2.4-windows-x86.exe) | 老旧 32 位 Windows 系统设备 | 适用于 32 位老旧设备环境。 |
+| **一键安装向导 (新手推荐)** | **`NetTrigger-v1.2.5-Setup.exe`** | [**点击直接下载**](https://github.com/Sacilave/net-trigger/releases/download/v1.2.5/NetTrigger-v1.2.5-Setup.exe) | 习惯标准 Windows 安装向导的用户 | 现代极简免提权安装，自动创建桌面及开始菜单快捷方式，支持完整一键卸载。 |
+| **便携单文件 (极客推荐 ⭐)** | **`NetTrigger-v1.2.5-windows-x64.exe`** | [**点击直接下载**](https://github.com/Sacilave/net-trigger/releases/download/v1.2.5/NetTrigger-v1.2.5-windows-x64.exe) | 绝大多数 Windows 10/11 用户 | **单个文件仅 ~2.08MB**，无需安装，解压即用。双击直接运行，可按需创建桌面快捷方式。 |
+| **完整便携压缩包** | **`NetTrigger-v1.2.5-windows-x64-portable.zip`** | [**点击直接下载**](https://github.com/Sacilave/net-trigger/releases/download/v1.2.5/NetTrigger-v1.2.5-windows-x64-portable.zip) | 需要完整配置模板与说明文档的用户 | 压缩包内含 `NetTrigger.exe` 主程序、`检测更新.bat`、`config.example.toml` 配置模板与说明文档。 |
+| **32位兼容版** | **`NetTrigger-v1.2.5-windows-x86.exe`** | [**点击直接下载**](https://github.com/Sacilave/net-trigger/releases/download/v1.2.5/NetTrigger-v1.2.5-windows-x86.exe) | 老旧 32 位 Windows 系统设备 | 适用于 32 位老旧设备环境。 |
 
 > 📌 **下载与升级小贴士**：
 > 1. **独立检测更新**：程序附带 `检测更新.bat`，双击即可一键比对 GitHub 最新版并支持自动热替换升级，完全不增加 NetTrigger 守护程序本身的常驻内存与性能消耗；
@@ -53,7 +53,7 @@
 ### 步骤 2：配置认证（选择适合你的模式）
 
 > 💡 **核心提示**：
-> 不同学校的校园网机制差异较大（部分网关有动态加密或防刷限制）。**如果后台静默连接不稳定或无法使用，请直接使用【打开网页登录】模式**，由浏览器记住密码自动登录，最简单、最稳定可靠。
+> 不同学校的校园网机制差异较大。NetTrigger 原生支持**【后台静默自动连】**与**【打开网页登录】**两种模式，并具备行业领先的**“静默优先 + 首次失败 0 秒唤起网页兜底 + 连通即刻停止”**双重守护机制，无论何种突发状况均能保障网络永不断流。
 
 #### 方式 1：打开网页登录 (推荐 · 最稳妥可靠 ⭐)
 掉线被拦截时自动唤起浏览器，由浏览器记住密码自动登录：
@@ -62,12 +62,15 @@
 3. 点击 **【保存设置】** 即可。
 > **优势**：不受网关加密、验证码或策略变更影响，只要浏览器能正常登录，就能 100% 稳定使用。
 
-#### 方式 2：后台静默自动连 (免弹窗免切屏)
-后台静默发包认证，适合打联机游戏、追求前台不弹窗切屏的用户：
+#### 方式 2：后台静默自动连 (免弹窗免切屏 · 双重兜底保障 ⭐)
+后台静默发包认证，专为打联机游戏、远程会议打造，全程前台不夺焦、不弹窗、不切屏：
 1. 打开 **【设置】** ➔ 切换至 **【后台自动连】** 标签页；
-2. 在浏览器登录页面按 `F12` 复制 cURL 命令，粘贴到输入框一键智能解析填入；
+2. 在浏览器登录页面按 `F12` 复制 cURL 命令，粘贴到输入框一键智能解析填入（锐捷网关可直接点击“锐捷一键填好”）；
 3. 点击 **【测试连接】** 确认网关返回成功 ➔ 点击 **【保存设置】**。
-> **注意**：若测试失败或平时使用时连接不稳定，**请直接切回【方式 1：打开网页登录】使用**。
+> 🛡️ **双重可靠兜底保障（业界首创）**：
+> - **静默优先**：网络断开时优先后台静默发包认证，100% 保持游戏/全屏观影不切屏、不卡顿；
+> - **首次失败 0 秒唤起网页**：若因极端网络波动导致第 1 次静默连接未成功，系统**立即自动打开登录网页**供您手动登录，绝不让您干等断网；
+> - **后台持续重试 + 连通即刻停止**：唤起网页的同时，后台依然保持快速自动重试；**一旦您在网页手动登录成功（或外网探针 204 通畅），系统 2 秒内瞬时感知并立即掐断所有后台重试，托盘变绿**，彻底杜绝多余发包与重复弹窗！
 
 ---
 
@@ -143,6 +146,7 @@ flowchart LR
   +------------------------------------+
   | 立即重连                           |  <-- 手动立即强制重测并重连
   | 打开登录网页                       |  <-- 浏览器快速登录通道
+  | 查看诊断报告                       |  <-- 一键生成格式化排障诊断文本并自动打开
   |------------------------------------|
   | 设置                               |  <-- 打开极简控制中心 (左键亦可打开)
   | Language / 语言          ▶         |  <-- 原生就地切换子菜单 (Auto / English / 简体中文)
@@ -176,13 +180,13 @@ flowchart LR
 git clone https://github.com/Sacilave/net-trigger.git
 cd net-trigger
 
-# 2. 运行自动化全链路测试套件 (包含 36 项单元与 Mock 边界测试)
+# 2. 运行自动化全链路测试套件 (包含 50 项单元与端到端回归测试)
 cargo test
 
 # 3. 极限裁剪编译 (自动应用 LTO、Strip 符号剥离与尺寸优化)
 cargo build --release
 
-# 编译生成单文件产物位于 target/release/NetTrigger.exe (仅 ~1.88 MB)
+# 编译生成单文件产物位于 target/release/NetTrigger.exe (仅 ~2.08 MB)
 ```
 
 ---
