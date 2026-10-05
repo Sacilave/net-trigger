@@ -229,24 +229,13 @@ impl Probe {
                         return Ok(ProbeStatus::Online);
                     } else if status == 200 {
                         // 204 端点却返回了 200 OK，说明被网关劫持并返回了认证页面
-                        // 限制最多读取 1KB 内容进行启发式特征检测
-                        let mut buf = [0u8; 1024];
-                        let mut reader = response.into_reader().take(1024);
+                        let mut buf = [0u8; 4096];
+                        let mut reader = response.into_reader().take(4096);
                         let n = reader.read(&mut buf).unwrap_or(0);
-                        let snippet = String::from_utf8_lossy(&buf[..n]).to_lowercase();
+                        let snippet = String::from_utf8_lossy(&buf[..n]);
 
-                        if snippet.contains("<html")
-                            || snippet.contains("<script")
-                            || snippet.contains("portal")
-                            || snippet.contains("login")
-                            || snippet.contains("radius")
-                            || snippet.contains("drcom")
-                        {
-                            return Ok(ProbeStatus::CaptivePortal { redirect_url: None });
-                        }
-
-                        // 若没有明显特征但非 204，仍属异常响应，判为 CaptivePortal 拦截
-                        return Ok(ProbeStatus::CaptivePortal { redirect_url: None });
+                        let extracted = extract_redirect_url_from_html(&snippet);
+                        return Ok(ProbeStatus::CaptivePortal { redirect_url: extracted });
                     } else {
                         // 其它 2xx 响应
                         return Ok(ProbeStatus::Online);
@@ -254,15 +243,15 @@ impl Probe {
                 } else {
                     // Fallback 端点 (例如 connecttest.txt 预期返回 200 及指定文本)
                     if status == 200 {
-                        let mut body = String::new();
-                        let mut reader = response.into_reader().take(1024);
-                        if reader.read_to_string(&mut body).is_ok() {
-                            if body.contains(&self.fallback_expected_keyword) {
-                                return Ok(ProbeStatus::Online);
-                            }
+                        let mut buf = [0u8; 4096];
+                        let mut reader = response.into_reader().take(4096);
+                        let n = reader.read(&mut buf).unwrap_or(0);
+                        let body = String::from_utf8_lossy(&buf[..n]);
+                        if body.contains(&self.fallback_expected_keyword) {
+                            return Ok(ProbeStatus::Online);
                         }
-                        // 返回了 200 但正文不匹配，判定为网关替换劫持
-                        return Ok(ProbeStatus::CaptivePortal { redirect_url: None });
+                        let extracted = extract_redirect_url_from_html(&body);
+                        return Ok(ProbeStatus::CaptivePortal { redirect_url: extracted });
                     }
                     Err(format!("备用端点返回非预期状态码: {}", status))
                 }
@@ -326,9 +315,23 @@ impl Probe {
                         redirect_url: location,
                     });
                 }
-                // 200 OK: 校园网认证网关响应了页面
+                // 200 OK: 校园网认证网关响应了页面，深度检查正文中的真实动态重定向脚本
+                let mut buf = [0u8; 4096];
+                let mut reader = response.into_reader().take(4096);
+                let n = reader.read(&mut buf).unwrap_or(0);
+                let snippet = String::from_utf8_lossy(&buf[..n]);
+
+                let extracted_url = extract_redirect_url_from_html(&snippet);
+                let final_redirect = extracted_url.or_else(|| {
+                    if probe_target.contains('?') {
+                        Some(probe_target.clone())
+                    } else {
+                        None
+                    }
+                });
+
                 Ok(ProbeStatus::CaptivePortal {
-                    redirect_url: Some(probe_target),
+                    redirect_url: final_redirect,
                 })
             }
             Err(ureq::Error::Status(code, response)) => {
@@ -352,13 +355,71 @@ impl Probe {
                     });
                 }
                 // 哪怕返回了 401/403/404 等，也说明网关服务活着，属于 CaptivePortal 环境
+                let final_redirect = if probe_target.contains('?') {
+                    Some(probe_target)
+                } else {
+                    None
+                };
                 Ok(ProbeStatus::CaptivePortal {
-                    redirect_url: Some(probe_target),
+                    redirect_url: final_redirect,
                 })
             }
             Err(ureq::Error::Transport(err)) => Err(err.to_string()),
         }
     }
+}
+
+/// 从 HTML 脚本中智能提取携带参数的完整重定向认证 URL
+pub fn extract_redirect_url_from_html(html: &str) -> Option<String> {
+    let lower = html.to_lowercase();
+    let script_hints = ["location.href", "location.replace", "window.location", "top.self.location", "top.location"];
+
+    for hint in &script_hints {
+        if let Some(pos) = lower.find(hint) {
+            let remainder = &html[pos + hint.len()..];
+            // 寻找赋值符号 '=' 后的引号
+            if let Some(quote_idx) = remainder.find(|c| c == '\'' || c == '"') {
+                let quote_char = remainder.as_bytes()[quote_idx] as char;
+                let target_slice = &remainder[quote_idx + 1..];
+                if let Some(end_quote_idx) = target_slice.find(quote_char) {
+                    let candidate = target_slice[..end_quote_idx].trim();
+                    if candidate.starts_with("http://") || candidate.starts_with("https://") {
+                        if candidate.contains('?') {
+                            return Some(candidate.to_string());
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // 备选提取 meta refresh 跳转
+    if let Some(pos) = lower.find("url=") {
+        let remainder = &html[pos + 4..];
+        let end_idx = remainder
+            .find(|c| c == '\'' || c == '"' || c == ';' || c == '>' || c == ' ')
+            .unwrap_or(remainder.len());
+        let candidate = remainder[..end_idx].trim().trim_matches(|c| c == '\'' || c == '"');
+        if candidate.starts_with("http://") || candidate.starts_with("https://") {
+            if candidate.contains('?') {
+                return Some(candidate.to_string());
+            }
+        }
+    }
+
+    // 备选提取任意 http:// 且包含 '?' 的 URL
+    if let Some(pos) = html.find("http://") {
+        let remainder = &html[pos..];
+        let end_idx = remainder
+            .find(|c| c == '\'' || c == '"' || c == '\r' || c == '\n' || c == '<' || c == '>')
+            .unwrap_or(remainder.len());
+        let candidate = &remainder[..end_idx];
+        if candidate.contains('?') && (candidate.contains("wlanuserip") || candidate.contains("eportal")) {
+            return Some(candidate.to_string());
+        }
+    }
+
+    None
 }
 
 /// 判定 IP 地址是否属于私网局域网（10.x, 172.16-31.x, 192.168.x）且排除了 APIPA (169.254.x) 与 Loopback

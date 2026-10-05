@@ -89,14 +89,18 @@ pub fn execute_ruijie_sam_auth(
     // 优先级 1: 探针实时截获的 302 重定向 URL
     if let Some(detected) = detected_portal_url {
         if let Some(qs) = extract_qs_from_url(detected) {
-            query_string = qs;
+            if is_valid_ruijie_query_string(&qs) {
+                query_string = qs;
+            }
         }
     }
 
     // 优先级 2: 双轨实时嗅探（直连网关内网端点 + 劫持探针）
     if query_string.is_empty() {
         if let Some(fresh_qs) = query::get_fresh_ruijie_query_string_for_host(&host, port) {
-            query_string = fresh_qs;
+            if is_valid_ruijie_query_string(&fresh_qs) {
+                query_string = fresh_qs;
+            }
         }
     }
 
@@ -107,23 +111,26 @@ pub fn execute_ruijie_sam_auth(
             if let Some(q_pos) = qs.find('?') {
                 qs = qs[q_pos + 1..].to_string();
             }
-            if !qs.trim().is_empty() {
+            if !qs.trim().is_empty() && is_valid_ruijie_query_string(&qs) {
                 query_string = qs;
             }
         }
     }
 
-    // 优先级 4: 从 action_url 自身尾部提取
+    // 优先级 4: 局域网网卡 IPv4 兜底合成 (防踩坑：绝不可采纳 action_url 中的 method=login，否则网关会报“WEB认证设备未注册”)
     if query_string.is_empty() {
-        if let Some(qs) = extract_qs_from_url(action_url) {
-            query_string = qs;
+        if let Some(ip) = crate::config::get_lan_adapter_ipv4() {
+            let ip_str = ip.to_string();
+            if !ip_str.starts_with("169.254.") && !ip_str.starts_with("127.") {
+                query_string = format!("wlanuserip={}", ip_str);
+            }
         }
     }
 
     if query_string.is_empty() {
         return AuthResult::fail_with_stage(
             400,
-            "无法获取校园网认证参数 (queryString 为空)".to_string(),
+            "无法获取校园网认证参数 (未捕获到 wlanuserip)".to_string(),
             "E2-02",
             "未能从 Wi-Fi 网络捕获到 wlanuserip 会话参数。请确认已连接校园网 Wi-Fi。".to_string(),
         );
@@ -209,7 +216,7 @@ pub fn execute_ruijie_sam_auth(
         return result;
     }
 
-    // 5. 自愈重试：若网关报"原ip与当前用户不一致"或"参数错误"，说明之前捕获的会话参数过期，刷新后重试一次
+    // 5. 自愈重试：若网关报"原ip与当前用户不一致"或"设备未注册"或"参数错误"，说明之前捕获的会话参数过期，刷新后重试一次
     if result.message.contains("原ip")
         || result.message.contains("设备未注册")
         || result.message.contains("queryString")
@@ -217,7 +224,7 @@ pub fn execute_ruijie_sam_auth(
         || result.message.contains("为空")
     {
         if let Some(retry_qs) = query::get_fresh_ruijie_query_string_for_host(&host, port) {
-            if retry_qs != query_string {
+            if is_valid_ruijie_query_string(&retry_qs) && retry_qs != query_string {
                 let mut retry_params = params.clone();
                 retry_params.insert("queryString".to_string(), retry_qs);
                 return execute_ruijie_sam_auth(action_url, &retry_params, headers, None);
@@ -226,4 +233,38 @@ pub fn execute_ruijie_sam_auth(
     }
 
     result
+}
+
+/// 校验 Ruijie SAM+ 会话 queryString 是否有效
+pub fn is_valid_ruijie_query_string(qs: &str) -> bool {
+    let clean = qs.trim();
+    if clean.is_empty() || clean.starts_with("method=") || clean == "method=login" {
+        return false;
+    }
+    clean.contains("wlanuserip")
+        || clean.contains("nasip")
+        || clean.contains("wlanacname")
+        || clean.contains("mac=")
+        || clean.contains("userip=")
+        || clean.contains("ip=")
+        || clean.contains("t=wireless")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_is_valid_ruijie_query_string() {
+        assert!(!is_valid_ruijie_query_string(""));
+        assert!(!is_valid_ruijie_query_string("   "));
+        // 关键防御：绝不能采纳 action_url 自身的 method=login
+        assert!(!is_valid_ruijie_query_string("method=login"));
+        assert!(!is_valid_ruijie_query_string("method=login&foo=bar"));
+
+        // 真实有效的 queryString
+        assert!(is_valid_ruijie_query_string("wlanuserip=10.150.100.101&nasip=10.10.200.1"));
+        assert!(is_valid_ruijie_query_string("wlanuserip=10.150.100.101"));
+        assert!(is_valid_ruijie_query_string("wlanacname=AC01&mac=00-11-22-33-44-55"));
+    }
 }

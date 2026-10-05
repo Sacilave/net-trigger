@@ -35,6 +35,43 @@ pub fn extract_qs_from_url(url: &str) -> Option<String> {
     None
 }
 
+fn check_target_for_redirect(agent: &ureq::Agent, target: &str) -> Option<String> {
+    let res = agent.get(target).call();
+    match res {
+        Ok(resp) => {
+            if let Some(loc) = resp.header("Location").or_else(|| resp.header("location")) {
+                let loc_trim = loc.trim();
+                if loc_trim.contains('?') && (loc_trim.contains("wlanuserip=") || loc_trim.contains("eportal") || loc_trim.contains("index.jsp")) {
+                    return Some(loc_trim.to_string());
+                }
+            }
+            let mut buf = [0u8; 4096];
+            let mut reader = resp.into_reader().take(4096);
+            use std::io::Read;
+            let n = reader.read(&mut buf).unwrap_or(0);
+            let snippet = String::from_utf8_lossy(&buf[..n]);
+            crate::probe::extract_redirect_url_from_html(&snippet)
+        }
+        Err(ureq::Error::Status(code, resp)) => {
+            if (300..=399).contains(&code) {
+                if let Some(loc) = resp.header("Location").or_else(|| resp.header("location")) {
+                    let loc_trim = loc.trim();
+                    if loc_trim.contains('?') && (loc_trim.contains("wlanuserip=") || loc_trim.contains("eportal") || loc_trim.contains("index.jsp")) {
+                        return Some(loc_trim.to_string());
+                    }
+                }
+            }
+            let mut buf = [0u8; 4096];
+            let mut reader = resp.into_reader().take(4096);
+            use std::io::Read;
+            let n = reader.read(&mut buf).unwrap_or(0);
+            let snippet = String::from_utf8_lossy(&buf[..n]);
+            crate::probe::extract_redirect_url_from_html(&snippet)
+        }
+        Err(_) => None,
+    }
+}
+
 /// 嗅探当前网络会话的真实认证重定向地址
 ///
 /// 架构设计（双轨嗅探）：
@@ -58,49 +95,24 @@ pub fn fetch_ruijie_redirect_url(gateway_host: &str, gateway_port: u16) -> Optio
         ];
 
         for target in &direct_targets {
-            if let Ok(resp) = agent.get(target).call() {
-                // 1.1 提取 30x Location 头
-                if let Some(loc) = resp.header("Location").or_else(|| resp.header("location")) {
-                    let loc_trim = loc.trim();
-                    if loc_trim.contains("wlanuserip=") || loc_trim.contains("index.jsp?") {
-                        return Some(loc_trim.to_string());
-                    }
-                }
-
-                // 1.2 备选从 HTML 内容中提取跳转脚本
-                let mut buf = [0u8; 2048];
-                let mut reader = resp.into_reader().take(2048);
-                use std::io::Read;
-                let n = reader.read(&mut buf).unwrap_or(0);
-                let snippet = String::from_utf8_lossy(&buf[..n]);
-                if let Some(pos) = snippet.find("http://") {
-                    let remainder = &snippet[pos..];
-                    let end_idx = remainder
-                        .find(|c| c == '\'' || c == '"' || c == '\r' || c == '\n' || c == '<' || c == '>')
-                        .unwrap_or(remainder.len());
-                    let candidate = &remainder[..end_idx];
-                    if candidate.contains("wlanuserip=") || candidate.contains("index.jsp?") {
-                        return Some(candidate.to_string());
-                    }
-                }
+            if let Some(url) = check_target_for_redirect(&agent, target) {
+                return Some(url);
             }
         }
     }
 
-    // 轨道 2: 标准 204 端点劫持嗅探（避开裸 IP 1.1.1.1，采用受 AC 劫持的探针端点）
+    // 轨道 2: 标准外网端点劫持嗅探（AC 硬件必定劫持 80 端口外网流量并重定向到带完整参数的认证页）
     let probe_targets = [
+        "http://123.123.123.123/",
+        "http://www.msftconnecttest.com/connecttest.txt",
         "http://connect.rom.miui.com/generate_204",
         "http://captive.apple.com/hotspot-detect.html",
+        "http://1.1.1.1/",
     ];
 
     for target in &probe_targets {
-        if let Ok(resp) = agent.get(target).call() {
-            if let Some(loc) = resp.header("Location").or_else(|| resp.header("location")) {
-                let loc_trim = loc.trim();
-                if loc_trim.contains("eportal") || loc_trim.contains("wlanuserip=") {
-                    return Some(loc_trim.to_string());
-                }
-            }
+        if let Some(url) = check_target_for_redirect(&agent, target) {
+            return Some(url);
         }
     }
 

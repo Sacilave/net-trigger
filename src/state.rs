@@ -169,7 +169,10 @@ impl StateMachine {
     /// 获取当前最可靠的登录网址 (优先使用网关动态返回的真实地址，彻底规避 success.jsp 与 IP 漂移)
     pub fn get_effective_portal_url(&self) -> String {
         if let Some(ref detected) = self.last_detected_portal_url {
-            if !detected.trim().is_empty() && !detected.contains("success.jsp") {
+            if !detected.trim().is_empty()
+                && !detected.contains("success.jsp")
+                && detected.contains('?')
+            {
                 return detected.trim().to_string();
             }
         }
@@ -179,6 +182,7 @@ impl StateMachine {
             && !configured.contains("example.")
             && configured != "http://10.10.200.102/"
             && configured != "http://10.10.200.102"
+            && configured != "http://10.10.200.102/eportal/index.jsp"
         {
             // 防踩坑：如果配置的 URL 带有静态旧参数（如旧的 wlanuserip=），会导致校园网网关报“原ip与当前用户不一致”
             if configured.contains("wlanuserip=") {
@@ -187,14 +191,17 @@ impl StateMachine {
                 }
                 return "http://123.123.123.123/".to_string();
             }
-            configured.to_string()
-        } else {
-            if let Some(fresh_url) = crate::auth::http_client::get_fresh_ruijie_portal_url() {
-                fresh_url
-            } else {
-                "http://123.123.123.123/".to_string()
+            if configured.contains('?') {
+                return configured.to_string();
             }
         }
+
+        if let Some(fresh_url) = crate::auth::http_client::get_fresh_ruijie_portal_url() {
+            if fresh_url.contains('?') {
+                return fresh_url;
+            }
+        }
+        "http://123.123.123.123/".to_string()
     }
 
     /// 记录诊断信息
@@ -420,15 +427,10 @@ impl StateMachine {
                 format!("网络连接成功！(延迟: {}ms)", self.latency_ms),
             );
         } else {
-            let is_browser_action = self.config.auth.mode == "browser"
-                || auth_result.stage_code == "E5-FALLBACK-BROWSER"
-                || auth_result.stage_code == "E5-FALLBACK-WAITING"
-                || auth_result.stage_code == "E5-BROWSER-WAITING";
-
-            if is_browser_action {
+            if self.config.auth.mode == "browser" {
                 // 仅当真正执行了打开浏览器动作时，才递增计数并记录时间戳
                 let is_fresh_open = auth_result.stage_code == "E5-FALLBACK-BROWSER"
-                    || (self.config.auth.mode == "browser" && auth_result.success);
+                    || auth_result.success;
 
                 if is_fresh_open {
                     self.record_browser_opened();
@@ -440,16 +442,25 @@ impl StateMachine {
 
                 let prompt_msg = if self.browser_open_count >= 3 {
                     "已多次打开网页，等待登录中 (如未弹出请右键托盘【打开认证网页】)"
-                } else if auth_result.stage_code == "E5-FALLBACK-BROWSER" || auth_result.stage_code == "E5-FALLBACK-WAITING" {
-                    "[E5-01] 静默登录未成功，已唤起浏览器登录，等待网页端登录完成..."
                 } else {
                     "已打开浏览器登录页面，等待网页端登录完成..."
                 };
                 self.transition_to(NetworkState::BackoffWait, prompt_msg.to_string());
             } else {
+                // http 静默模式
                 self.consecutive_failures = self.consecutive_failures.saturating_add(1);
                 let backoff_secs = self.calculate_backoff_secs();
                 self.backoff_until = Some(Instant::now() + Duration::from_secs(backoff_secs));
+
+                // 核心用户体验重构：首次静默连接失败，立即打开浏览器登录页面提供即时入口，并在后台持续自动重试
+                let opened_fallback = if self.browser_open_count == 0 {
+                    let portal_url = self.get_effective_portal_url();
+                    let _ = crate::auth::browser::open_browser_portal(&portal_url, true, false);
+                    self.record_browser_opened();
+                    true
+                } else {
+                    false
+                };
 
                 // 仅当 HTTP 模拟认证返回了明确成功 (status 200 且 success 为 true)，但外网探针依然被拦截时，才判定为 E6-01 (规则生效延迟)
                 if auth_result.success {
@@ -461,7 +472,7 @@ impl StateMachine {
                     );
                 } else {
                     self.record_diagnostic(
-                        auth_result.stage_code,
+                        &auth_result.stage_code,
                         "网关认证失败",
                         &auth_result.message,
                         &auth_result.suggestion,
@@ -478,18 +489,26 @@ impl StateMachine {
                     String::new()
                 };
 
-                let reason_summary = if !auth_result.success && !auth_result.message.is_empty() {
-                    format!("{}: ", auth_result.message)
-                } else if auth_result.success {
-                    "等待网关防火墙规则放行: ".to_string()
+                let user_friendly_msg = if opened_fallback {
+                    format!("{}{}已自动打开登录网页；{}秒后在后台自动重试 (第{}次)",
+                        stage_tag,
+                        if !auth_result.message.is_empty() { format!("{}: ", auth_result.message) } else { String::new() },
+                        backoff_secs,
+                        self.consecutive_failures
+                    )
                 } else {
-                    String::new()
+                    let reason_summary = if !auth_result.success && !auth_result.message.is_empty() {
+                        format!("{}: ", auth_result.message)
+                    } else if auth_result.success {
+                        "等待网关防火墙规则放行: ".to_string()
+                    } else {
+                        String::new()
+                    };
+                    format!(
+                        "{}{}{}秒后重试 (第{}次)",
+                        stage_tag, reason_summary, backoff_secs, self.consecutive_failures
+                    )
                 };
-
-                let user_friendly_msg = format!(
-                    "{}{}{}秒后重试 (第{}次)",
-                    stage_tag, reason_summary, backoff_secs, self.consecutive_failures
-                );
 
                 let clamped_msg = if user_friendly_msg.chars().count() > 110 {
                     let mut s: String = user_friendly_msg.chars().take(107).collect();
@@ -548,12 +567,14 @@ impl StateMachine {
                 .map(|d| format!("[{}] ", d.stage_code))
                 .unwrap_or_default();
 
-            if is_browser {
+            if self.config.auth.mode == "browser" {
                 if self.browser_open_count >= 3 {
                     self.last_message = format!("{}等待网页登录中... ({}秒后再次检测)", stage_tag, rem);
                 } else {
                     self.last_message = format!("{}等待网页登录中，{}秒后再次检测", stage_tag, rem);
                 }
+            } else if self.browser_open_count > 0 {
+                self.last_message = format!("{}已打开登录网页 (可手动登录)；后台将在{}秒后重试 (第{}次)", stage_tag, rem, self.consecutive_failures);
             } else {
                 let reason = self.last_diagnostic.as_ref()
                     .map(|d| format!("{}: ", d.title))
@@ -561,7 +582,7 @@ impl StateMachine {
                 self.last_message = format!("{}{}{}秒后重试 (第{}次)", stage_tag, reason, rem, self.consecutive_failures);
             }
 
-            let should_quick_verify = is_browser && (rem % 3 == 0);
+            let should_quick_verify = is_browser && (rem % 2 == 0);
             return (false, should_quick_verify);
         }
 
@@ -902,7 +923,26 @@ mod tests {
             assert_ne!(diag.stage_code, "E6-01");
         }
         assert_eq!(fsm.state(), NetworkState::BackoffWait);
-        // 唤起浏览器后进入防抖冷却窗口（首次 60 秒），杜绝每秒疯狂弹窗
+        // 静默模式下首次失败立即打开浏览器，并在后台快速重试（退避<=5秒），绝不让用户死等60秒
+        let snap = fsm.snapshot();
+        assert!(snap.backoff_remaining_sec <= 5);
+        assert!(snap.last_message.contains("打开登录网页"));
+    }
+
+    #[test]
+    fn test_apply_reconnect_result_pure_browser_mode() {
+        let mut config = Config::default();
+        config.auth.mode = "browser".to_string();
+        let mut fsm = StateMachine::new(config);
+
+        let browser_auth = AuthResult::ok(200, "已唤起浏览器登录页面".to_string());
+        let verify_offline = ProbeReport {
+            status: ProbeStatus::Offline { reason: "test".to_string() },
+            latency_ms: 10,
+        };
+
+        fsm.apply_reconnect_result(browser_auth, verify_offline);
+        assert_eq!(fsm.state(), NetworkState::BackoffWait);
         let snap = fsm.snapshot();
         assert!(snap.backoff_remaining_sec <= 60 && snap.backoff_remaining_sec >= 50);
         assert!(snap.last_message.contains("等待网页端登录完成"));
@@ -954,5 +994,51 @@ mod tests {
         assert!(!expired);
         let snap = fsm.snapshot();
         assert!(snap.last_message.contains("秒后重试"));
+    }
+
+    #[test]
+    fn test_emergency_browser_fallback_lifecycle() {
+        let config = Config::default();
+        let mut fsm = StateMachine::new(config);
+
+        let fail_auth = AuthResult::fail_with_stage(
+            200,
+            "网关拒绝登录: WEB认证设备未注册".to_string(),
+            "E2-02",
+            "Wi-Fi 会话参数或 IP 已过期变更".to_string(),
+        );
+
+        let verify_offline = ProbeReport {
+            status: ProbeStatus::Offline { reason: "intercepted".to_string() },
+            latency_ms: 10,
+        };
+
+        // 1. 首次静默认证失败：触发紧急网页打开兜底，设置浏览器打开标记，并在后台快速调度重试
+        fsm.apply_reconnect_result(fail_auth.clone(), verify_offline.clone());
+        assert_eq!(fsm.state(), NetworkState::BackoffWait);
+        assert_eq!(fsm.browser_open_count, 1);
+        assert!(fsm.last_browser_open_at.is_some());
+        let snap1 = fsm.snapshot();
+        assert!(snap1.last_message.contains("已自动打开登录网页"));
+        assert!(snap1.backoff_remaining_sec <= 5);
+
+        // 2. 模拟后台重试第 2 次依然失败：严禁二次弹窗！browser_open_count 仍为 1
+        fsm.apply_reconnect_result(fail_auth, verify_offline);
+        assert_eq!(fsm.browser_open_count, 1);
+        assert_eq!(fsm.consecutive_failures, 2);
+
+        // 3. 模拟用户在已打开的网页中手动点击登录成功（或外网探针通过 204）
+        let verify_online = ProbeReport {
+            status: ProbeStatus::Online,
+            latency_ms: 15,
+        };
+        fsm.apply_probe_result(verify_online);
+
+        // 验证：瞬时停止所有后台重试，清除所有错误与弹窗计数，状态跃迁至 Online 变绿
+        assert_eq!(fsm.state(), NetworkState::Online);
+        assert_eq!(fsm.consecutive_failures, 0);
+        assert_eq!(fsm.browser_open_count, 0);
+        assert!(fsm.backoff_until.is_none());
+        assert!(fsm.last_browser_open_at.is_none());
     }
 }
