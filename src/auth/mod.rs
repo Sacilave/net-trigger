@@ -1,9 +1,11 @@
 pub mod browser;
 pub mod http_client;
+pub mod ruijie;
 
 use crate::config::{Config, MacroContext};
 pub use browser::{open_browser_portal, BrowserError};
 pub use http_client::{execute_http_auth, AuthResult};
+pub use ruijie::{get_fresh_ruijie_portal_url, get_fresh_ruijie_query_string};
 
 /// 认证动作执行调度器
 pub struct AuthExecutor;
@@ -14,7 +16,11 @@ impl AuthExecutor {
     /// 自动根据配置的 mode ("browser" / "http") 派发执行：
     /// - "browser" (自动打开网页登录·有弹窗)：无需用户名密码，掉线时唤起浏览器由已保存密码自动登录；
     /// - "http" (后台静默登录·无弹窗)：根据配置后台静默发包，打游戏不弹窗不切屏。
-    pub fn execute(config: &Config, detected_portal_url: Option<&str>) -> AuthResult {
+    pub fn execute(
+        config: &Config,
+        detected_portal_url: Option<&str>,
+        allow_browser_open: bool,
+    ) -> AuthResult {
         let mode = config.auth.mode.to_lowercase();
 
         if mode == "browser" {
@@ -53,7 +59,7 @@ impl AuthExecutor {
                 || target_url == "http://10.10.200.102/"
                 || target_url == "http://10.10.200.102"
             {
-                if let Some(fresh_url) = http_client::get_fresh_ruijie_portal_url() {
+                if let Some(fresh_url) = ruijie::get_fresh_ruijie_portal_url() {
                     fresh_url
                 } else {
                     "http://123.123.123.123/".to_string()
@@ -61,6 +67,16 @@ impl AuthExecutor {
             } else {
                 target_url.to_string()
             };
+
+            // 若正处于防重弹冷却期内，跳过重复拉起外部浏览器动作，保持静默等待
+            if !allow_browser_open {
+                return AuthResult::fail_with_stage(
+                    0,
+                    "已在此前打开登录网页，等待网页端登录完成".to_string(),
+                    "E5-BROWSER-WAITING",
+                    "请在已打开的网页中完成登录。如未打开可右键托盘点击【打开认证网页】。".to_string(),
+                );
+            }
 
             match open_browser_portal(&final_url, true, true) {
                 Ok(_) => AuthResult::ok(200, "已唤起浏览器登录页面，由浏览器自动填充密码登录".to_string()),
@@ -75,61 +91,19 @@ impl AuthExecutor {
             // mode == "http" (静默模拟登录)
             let ctx = MacroContext::build(config);
             let action_url = config.get_expanded_action_url(&ctx);
-            let mut params = config.get_expanded_params_with_ctx(&ctx);
+            let params = config.get_expanded_params_with_ctx(&ctx);
 
-            // 锐捷 RG-SAM+ / eportal 校园网智能参数自动补全：
-            // 当 action_url 包含 InterFace.do 或 eportal 时，始终优先采用当前网络会话的动态 queryString：
-            if action_url.contains("InterFace.do") || action_url.contains("eportal") {
-                let mut dynamic_qs = None;
-
-                // 优先级 1: 本次探测即时捕获到的认证重定向 URL (包含最新的动态 IP 与会话参数)
-                if let Some(source_url) = detected_portal_url {
-                    if let Some(q_pos) = source_url.find('?') {
-                        let qs = &source_url[q_pos + 1..];
-                        if !qs.is_empty() {
-                            dynamic_qs = Some(qs.to_string());
-                        }
-                    }
-                }
-
-                // 优先级 2: 从局域网物理网卡向外网发起瞬时探测，抓取 AC 返回的最新 302 重定向
-                if dynamic_qs.is_none() {
-                    dynamic_qs = http_client::get_fresh_ruijie_query_string();
-                }
-
-                // 若成功抓取到最新的动态 queryString，强制覆盖（杜绝使用旧 IP 缓存造成"原ip与当前用户不一致"）
-                if let Some(qs) = dynamic_qs {
-                    params.insert("queryString".to_string(), qs);
-                } else {
-                    // 仅当动态探测完全无响应时，才降级使用配置中的 queryString 作为兜底
-                    let has_valid_qs = params
-                        .get("queryString")
-                        .map(|s| !s.trim().is_empty())
-                        .unwrap_or(false);
-
-                    if !has_valid_qs {
-                        let cur_portal = &config.auth.portal_url;
-                        if let Some(q_pos) = cur_portal.find('?') {
-                            let qs = &cur_portal[q_pos + 1..];
-                            if !qs.is_empty() {
-                                params.insert("queryString".to_string(), qs.to_string());
-                            }
-                        }
-                    }
-                }
-                if !params.contains_key("passwordEncrypt") {
-                    params.insert("passwordEncrypt".to_string(), "false".to_string());
-                }
-                if !params.contains_key("service") {
-                    params.insert("service".to_string(), "".to_string());
-                }
-                // 兼容 userId 别名
-                if let Some(username_val) = params.get("username").cloned() {
-                    params.entry("userId".to_string()).or_insert(username_val);
-                }
-            }
-
-            let result = execute_http_auth(&config.auth.http, &action_url, &params);
+            // 派发认证驱动：若是锐捷 RG-SAM+ / eportal 专精处理，否则使用通用 HTTP 客户端
+            let result = if action_url.contains("InterFace.do") || action_url.contains("eportal") {
+                ruijie::execute_ruijie_sam_auth(
+                    &action_url,
+                    &params,
+                    &config.auth.http.headers,
+                    detected_portal_url,
+                )
+            } else {
+                execute_http_auth(&config.auth.http, &action_url, &params)
+            };
 
             // 若 HTTP 模拟认证失败且显式允许了浏览器兜底
             if !result.success && config.general.allow_browser_fallback {
@@ -140,6 +114,17 @@ impl AuthExecutor {
                     } else {
                         "http://123.123.123.123/"
                     });
+
+                // 若正处于防重弹冷却期内，跳过重复拉起外部浏览器动作，保持静默等待
+                if !allow_browser_open {
+                    return AuthResult::fail_with_stage(
+                        0,
+                        "静默登录未成功，已在此前唤起浏览器，等待网页端登录完成".to_string(),
+                        "E5-FALLBACK-WAITING",
+                        "请在已打开的校园网页面中完成登录，或右键托盘点击【打开认证网页】。".to_string(),
+                    );
+                }
+
                 if open_browser_portal(fallback_url, true, false).is_ok() {
                     return AuthResult::fail_with_stage(
                         0,
@@ -165,7 +150,7 @@ mod tests {
         cfg.auth.mode = "browser".to_string();
         cfg.auth.portal_url = "".to_string();
 
-        let res = AuthExecutor::execute(&cfg, None);
+        let res = AuthExecutor::execute(&cfg, None, true);
         assert!(!res.success);
         assert!(res.message.contains("未配置"));
     }
@@ -176,8 +161,7 @@ mod tests {
         cfg.auth.mode = "browser".to_string();
         cfg.auth.portal_url = "http://10.10.200.102/eportal/success.jsp?userIndex=123".to_string();
 
-        let res = AuthExecutor::execute(&cfg, None);
-        // Should succeed in invoking browser with fallback rather than failing
+        let res = AuthExecutor::execute(&cfg, None, true);
         assert!(res.success);
     }
 
@@ -187,7 +171,19 @@ mod tests {
         cfg.auth.mode = "browser".to_string();
         cfg.auth.portal_url = "http://10.10.200.102/eportal/success.jsp?userIndex=123".to_string();
 
-        let res = AuthExecutor::execute(&cfg, Some("http://10.10.200.102/eportal/index.jsp?wlanuserip=10.0.0.1"));
+        let res = AuthExecutor::execute(&cfg, Some("http://10.10.200.102/eportal/index.jsp?wlanuserip=10.0.0.1"), true);
         assert!(res.success);
+    }
+
+    #[test]
+    fn test_auth_executor_browser_mode_respects_cooldown_gate() {
+        let mut cfg = Config::default();
+        cfg.auth.mode = "browser".to_string();
+        cfg.auth.portal_url = "http://10.10.200.102/eportal/index.jsp".to_string();
+
+        // 当 allow_browser_open = false 时，严禁拉起浏览器，必须返回等待状态
+        let res = AuthExecutor::execute(&cfg, None, false);
+        assert!(!res.success);
+        assert_eq!(res.stage_code, "E5-BROWSER-WAITING");
     }
 }

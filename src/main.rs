@@ -20,6 +20,17 @@ use utils::fs::get_config_path;
 use watcher::{start_network_watcher, NetworkEvent};
 
 fn main() {
+    // 供外部脚本 (如 检测更新.bat) 极速获取当前版本号，0开销瞬间退出
+    if std::env::args().any(|arg| arg == "--version" || arg == "-v" || arg == "/version" || arg == "/v" || arg == "version") {
+        #[cfg(windows)]
+        unsafe {
+            use windows_sys::Win32::System::Console::{AttachConsole, ATTACH_PARENT_PROCESS};
+            AttachConsole(ATTACH_PARENT_PROCESS);
+        }
+        println!("NetTrigger {}", env!("CARGO_PKG_VERSION"));
+        return;
+    }
+
     // 0. 启动时自愈注册表自启动项：升级历史老版本可能未携带 --autostart 参数的旧键值
     tray::autostart::sync_and_heal_autostart_registry();
 
@@ -153,6 +164,7 @@ fn main() {
             config: Config,
             detected_url: Option<String>,
             probe: probe::Probe,
+            allow_browser_open: bool,
         },
         QuickVerify(probe::Probe),
     }
@@ -183,9 +195,15 @@ fn main() {
                         let rep = probe.check_with_report();
                         let _ = result_tx.send(WorkerResult::Probe(rep));
                     }
-                    WorkerTask::Reconnect { config, detected_url, probe } => {
-                        let auth_res = auth::AuthExecutor::execute(&config, detected_url.as_deref());
-                        if config.auth.mode == "browser" || auth_res.stage_code == "E5-FALLBACK-BROWSER" {
+                    WorkerTask::Reconnect { config, detected_url, probe, allow_browser_open } => {
+                        let auth_res = auth::AuthExecutor::execute(
+                            &config,
+                            detected_url.as_deref(),
+                            allow_browser_open,
+                        );
+                        let is_fresh_open = auth_res.stage_code == "E5-FALLBACK-BROWSER"
+                            || (config.auth.mode == "browser" && auth_res.success);
+                        if is_fresh_open {
                             std::thread::sleep(Duration::from_millis(1500));
                         } else if auth_res.success {
                             std::thread::sleep(Duration::from_millis(300));
@@ -265,6 +283,7 @@ fn main() {
                             config: fsm.config().clone(),
                             detected_url: url,
                             probe: fsm.probe_instance(),
+                            allow_browser_open: fsm.should_allow_browser_open(),
                         });
                     } else {
                         let _ = worker_tx.send(WorkerTask::Probe(fsm.probe_instance()));
@@ -365,6 +384,7 @@ fn main() {
                                 config: fsm.config().clone(),
                                 detected_url: url,
                                 probe: fsm.probe_instance(),
+                                allow_browser_open: fsm.should_allow_browser_open(),
                             });
                             let s = fsm.snapshot();
                             if let Some(ref mut mgr) = tray_mgr {
@@ -411,6 +431,7 @@ fn main() {
                             config: fsm.config().clone(),
                             detected_url: url,
                             probe: fsm.probe_instance(),
+                            allow_browser_open: fsm.should_allow_browser_open(),
                         });
                         let s = fsm.snapshot();
                         if let Some(ref mut mgr) = tray_mgr {

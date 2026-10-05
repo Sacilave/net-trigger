@@ -77,6 +77,7 @@ pub struct StateMachine {
     last_message: String,
     last_detected_portal_url: Option<String>,
     last_browser_open_at: Option<Instant>,
+    browser_open_count: u32,
     last_diagnostic: Option<DiagnosticRecord>,
 }
 
@@ -96,7 +97,50 @@ impl StateMachine {
             last_message: "系统已启动".to_string(),
             last_detected_portal_url: None,
             last_browser_open_at: None,
+            browser_open_count: 0,
             last_diagnostic: None,
+        }
+    }
+
+    /// 判断当前是否允许自动拉起外部浏览器登录网页
+    ///
+    /// 核心防抖与防夺焦守则：
+    /// 1. 首次触发：0ms 立即放行；
+    /// 2. 处于冷却期内：坚决拦截，避免短时间内重复弹窗打开几十个标签页；
+    /// 3. 指数退避间隔：第 1 次打开后冷却 60 秒，第 2 次打开后冷却 180 秒；
+    /// 4. 最大连续打开 3 次后彻底停止自动弹窗，转为静默守护并引导用户手动点击。
+    pub fn should_allow_browser_open(&self) -> bool {
+        let opened_at = match self.last_browser_open_at {
+            Some(t) => t,
+            None => return true,
+        };
+
+        if self.browser_open_count >= 3 {
+            return false;
+        }
+
+        let cooldown = match self.browser_open_count {
+            0 => Duration::from_secs(0),
+            1 => Duration::from_secs(60),
+            _ => Duration::from_secs(180),
+        };
+
+        opened_at.elapsed() >= cooldown
+    }
+
+    /// 记录实际执行了打开浏览器动作
+    pub fn record_browser_opened(&mut self) {
+        self.last_browser_open_at = Some(Instant::now());
+        self.browser_open_count = self.browser_open_count.saturating_add(1);
+    }
+
+    /// 计算浏览器模式下的防重弹等待退避秒数
+    pub fn calculate_browser_backoff_secs(&self) -> u64 {
+        match self.browser_open_count {
+            0 => 60,
+            1 => 60,
+            2 => 180,
+            _ => 300,
         }
     }
 
@@ -221,6 +265,7 @@ impl StateMachine {
                 self.consecutive_failures = 0;
                 self.backoff_until = None;
                 self.last_browser_open_at = None;
+                self.browser_open_count = 0;
                 self.record_diagnostic(
                     "OK",
                     "网络畅通已放行",
@@ -342,7 +387,11 @@ impl StateMachine {
 
         let is_browser_mode = self.config.auth.mode == "browser";
         let action_desc = if is_browser_mode {
-            "正在打开登录网页..."
+            if self.should_allow_browser_open() {
+                "正在打开登录网页..."
+            } else {
+                "等待网页端登录完成..."
+            }
         } else {
             "正在自动连接网络..."
         };
@@ -359,6 +408,7 @@ impl StateMachine {
             self.consecutive_failures = 0;
             self.backoff_until = None;
             self.last_browser_open_at = None;
+            self.browser_open_count = 0;
             self.record_diagnostic(
                 "OK",
                 "网络已连通",
@@ -371,15 +421,26 @@ impl StateMachine {
             );
         } else {
             let is_browser_action = self.config.auth.mode == "browser"
-                || auth_result.stage_code == "E5-FALLBACK-BROWSER";
+                || auth_result.stage_code == "E5-FALLBACK-BROWSER"
+                || auth_result.stage_code == "E5-FALLBACK-WAITING"
+                || auth_result.stage_code == "E5-BROWSER-WAITING";
 
             if is_browser_action {
-                self.last_browser_open_at = Some(Instant::now());
-                // 浏览器模式下不进行指数退避惩罚，保持 3 秒轻量轮询检测
-                let backoff_secs = 3u64;
+                // 仅当真正执行了打开浏览器动作时，才递增计数并记录时间戳
+                let is_fresh_open = auth_result.stage_code == "E5-FALLBACK-BROWSER"
+                    || (self.config.auth.mode == "browser" && auth_result.success);
+
+                if is_fresh_open {
+                    self.record_browser_opened();
+                }
+
+                // 浏览器模式下采用递增的防抖冷却等待时间，绝不频繁重复弹窗切屏
+                let backoff_secs = self.calculate_browser_backoff_secs();
                 self.backoff_until = Some(Instant::now() + Duration::from_secs(backoff_secs));
 
-                let prompt_msg = if auth_result.stage_code == "E5-FALLBACK-BROWSER" {
+                let prompt_msg = if self.browser_open_count >= 3 {
+                    "已多次打开网页，等待登录中 (如未弹出请右键托盘【打开认证网页】)"
+                } else if auth_result.stage_code == "E5-FALLBACK-BROWSER" || auth_result.stage_code == "E5-FALLBACK-WAITING" {
                     "[E5-01] 静默登录未成功，已唤起浏览器登录，等待网页端登录完成..."
                 } else {
                     "已打开浏览器登录页面，等待网页端登录完成..."
@@ -451,27 +512,15 @@ impl StateMachine {
         };
 
         let is_browser_mode = self.config.auth.mode == "browser";
-        let should_skip_browser_open = if is_browser_mode {
-            if let Some(opened_at) = self.last_browser_open_at {
-                opened_at.elapsed() < Duration::from_secs(30) && self.consecutive_failures > 0
-            } else {
-                false
-            }
-        } else {
-            false
-        };
+        let allow_browser_open = self.should_allow_browser_open();
 
-        let auth_result: AuthResult = if should_skip_browser_open {
-            AuthResult::ok(200, "等待用户在已打开的网页中完成登录...".to_string())
-        } else {
-            let res = AuthExecutor::execute(&self.config, detected_url.as_deref());
-            if is_browser_mode && res.success {
-                self.last_browser_open_at = Some(Instant::now());
-            }
-            res
-        };
+        let auth_result: AuthResult = AuthExecutor::execute(
+            &self.config,
+            detected_url.as_deref(),
+            allow_browser_open,
+        );
 
-        if is_browser_mode {
+        if is_browser_mode && allow_browser_open && auth_result.success {
             std::thread::sleep(Duration::from_millis(1500));
         } else if auth_result.success {
             std::thread::sleep(Duration::from_millis(300));
@@ -500,7 +549,11 @@ impl StateMachine {
                 .unwrap_or_default();
 
             if is_browser {
-                self.last_message = format!("{}等待网页登录中，{}秒后自动检测", stage_tag, rem);
+                if self.browser_open_count >= 3 {
+                    self.last_message = format!("{}等待网页登录中... ({}秒后再次检测)", stage_tag, rem);
+                } else {
+                    self.last_message = format!("{}等待网页登录中，{}秒后再次检测", stage_tag, rem);
+                }
             } else {
                 let reason = self.last_diagnostic.as_ref()
                     .map(|d| format!("{}: ", d.title))
@@ -520,6 +573,7 @@ impl StateMachine {
         self.consecutive_failures = 0;
         self.backoff_until = None;
         self.last_browser_open_at = None;
+        self.browser_open_count = 0;
     }
 
     /// 生成格式化专业排障诊断报告（供用户右键托盘查看）
@@ -631,6 +685,7 @@ r#"=============================================================================
         self.consecutive_failures = 0;
         self.backoff_until = None;
         self.last_browser_open_at = None;
+        self.browser_open_count = 0;
         self.last_message = "网络已变动，立即重新检测...".to_string();
         self.step_probe()
     }
@@ -654,6 +709,7 @@ r#"=============================================================================
         self.consecutive_failures = 0;
         self.backoff_until = None;
         self.last_browser_open_at = None;
+        self.browser_open_count = 0;
         self.last_message = "用户手动触发网络检测与重连".to_string();
         let state = self.step_probe();
         if state != NetworkState::Online {
@@ -846,10 +902,44 @@ mod tests {
             assert_ne!(diag.stage_code, "E6-01");
         }
         assert_eq!(fsm.state(), NetworkState::BackoffWait);
-        // 退避时间不应为指数退避的 60 秒，应为温和的 3 秒等待
+        // 唤起浏览器后进入防抖冷却窗口（首次 60 秒），杜绝每秒疯狂弹窗
         let snap = fsm.snapshot();
-        assert!(snap.backoff_remaining_sec <= 3);
+        assert!(snap.backoff_remaining_sec <= 60 && snap.backoff_remaining_sec >= 50);
         assert!(snap.last_message.contains("等待网页端登录完成"));
+    }
+
+    #[test]
+    fn test_browser_cooldown_exponential_growth_and_cap() {
+        let config = Config::default();
+        let mut fsm = StateMachine::new(config);
+
+        // 初始状态：允许打开
+        assert!(fsm.should_allow_browser_open());
+
+        // 模拟第 1 次唤起浏览器
+        fsm.record_browser_opened();
+        assert_eq!(fsm.browser_open_count, 1);
+        assert_eq!(fsm.calculate_browser_backoff_secs(), 60);
+        // 处于冷却期中，禁止连续再次弹窗
+        assert!(!fsm.should_allow_browser_open());
+
+        // 模拟第 2 次唤起浏览器
+        fsm.record_browser_opened();
+        assert_eq!(fsm.browser_open_count, 2);
+        assert_eq!(fsm.calculate_browser_backoff_secs(), 180);
+        assert!(!fsm.should_allow_browser_open());
+
+        // 模拟第 3 次唤起浏览器
+        fsm.record_browser_opened();
+        assert_eq!(fsm.browser_open_count, 3);
+        assert_eq!(fsm.calculate_browser_backoff_secs(), 300);
+        // 达到 3 次上限，彻底停止自动弹窗
+        assert!(!fsm.should_allow_browser_open());
+
+        // 网络变动后自愈重置
+        fsm.on_network_changed();
+        assert_eq!(fsm.browser_open_count, 0);
+        assert!(fsm.should_allow_browser_open());
     }
 
     #[test]

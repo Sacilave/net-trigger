@@ -4,7 +4,7 @@
 
 **专为 Windows 平台打造的原生、超轻量（RAM < 2MB）、毫秒级事件响应的网络状态感知与校园网自动化重连守护引擎**
 
-[![Release](https://img.shields.io/badge/Release-v1.2.3-blue.svg)](https://github.com/Sacilave/net-trigger/releases)
+[![Release](https://img.shields.io/badge/Release-v1.2.4-blue.svg)](https://github.com/Sacilave/net-trigger/releases)
 [![License](https://img.shields.io/badge/License-CC%20BY--NC%204.0-red.svg)](./LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Windows%2010%20%2F%2011-blue.svg)]()
 [![Memory](https://img.shields.io/badge/RAM-%3C%201.9%20MB-brightgreen.svg)]()
@@ -40,14 +40,15 @@
 
 | 版本名称 | 目标文件 | 下载直链 | 适用人群 | 特点说明 |
 | :--- | :--- | :--- | :--- | :--- |
-| **一键安装向导 (新手推荐)** | **`NetTrigger-v1.2.3-Setup.exe`** | [**点击直接下载**](https://github.com/Sacilave/net-trigger/releases/download/v1.2.3/NetTrigger-v1.2.3-Setup.exe) | 习惯标准 Windows 安装向导的用户 | 现代极简免提权安装，自动创建桌面及开始菜单快捷方式，支持完整一键卸载。 |
-| **便携单文件 (极客推荐 ⭐)** | **`NetTrigger-v1.2.3-windows-x64.exe`** | [**点击直接下载**](https://github.com/Sacilave/net-trigger/releases/download/v1.2.3/NetTrigger-v1.2.3-windows-x64.exe) | 绝大多数 Windows 10/11 用户 | **单个文件仅 ~2.08MB**，无需安装，解压即用。双击直接运行，可按需创建桌面快捷方式。 |
-| **完整便携压缩包** | **`NetTrigger-v1.2.3-windows-x64-portable.zip`** | [**点击直接下载**](https://github.com/Sacilave/net-trigger/releases/download/v1.2.3/NetTrigger-v1.2.3-windows-x64-portable.zip) | 需要完整配置模板与说明文档的用户 | 压缩包内含 `NetTrigger.exe` 主程序、`config.example.toml` 配置模板与说明文档。 |
-| **32位兼容版** | **`NetTrigger-v1.2.3-windows-x86.exe`** | [**点击直接下载**](https://github.com/Sacilave/net-trigger/releases/download/v1.2.3/NetTrigger-v1.2.3-windows-x86.exe) | 老旧 32 位 Windows 系统设备 | 适用于 32 位老旧设备环境。 |
+| **一键安装向导 (新手推荐)** | **`NetTrigger-v1.2.4-Setup.exe`** | [**点击直接下载**](https://github.com/Sacilave/net-trigger/releases/download/v1.2.4/NetTrigger-v1.2.4-Setup.exe) | 习惯标准 Windows 安装向导的用户 | 现代极简免提权安装，自动创建桌面及开始菜单快捷方式，支持完整一键卸载。 |
+| **便携单文件 (极客推荐 ⭐)** | **`NetTrigger-v1.2.4-windows-x64.exe`** | [**点击直接下载**](https://github.com/Sacilave/net-trigger/releases/download/v1.2.4/NetTrigger-v1.2.4-windows-x64.exe) | 绝大多数 Windows 10/11 用户 | **单个文件仅 ~2.08MB**，无需安装，解压即用。双击直接运行，可按需创建桌面快捷方式。 |
+| **完整便携压缩包** | **`NetTrigger-v1.2.4-windows-x64-portable.zip`** | [**点击直接下载**](https://github.com/Sacilave/net-trigger/releases/download/v1.2.4/NetTrigger-v1.2.4-windows-x64-portable.zip) | 需要完整配置模板与说明文档的用户 | 压缩包内含 `NetTrigger.exe` 主程序、`检测更新.bat`、`config.example.toml` 配置模板与说明文档。 |
+| **32位兼容版** | **`NetTrigger-v1.2.4-windows-x86.exe`** | [**点击直接下载**](https://github.com/Sacilave/net-trigger/releases/download/v1.2.4/NetTrigger-v1.2.4-windows-x86.exe) | 老旧 32 位 Windows 系统设备 | 适用于 32 位老旧设备环境。 |
 
-> 📌 **下载小贴士**：
-> 1. 如需查看全部历史版本与详细更新日志，请访问 [GitHub Releases 发布主页](https://github.com/Sacilave/net-trigger/releases)；
-> 2. 💡 **绿色纯净**：程序常驻物理内存仅 1.8MB，CPU 严格 0.00%，免管理员权限运行。
+> 📌 **下载与升级小贴士**：
+> 1. **独立检测更新**：程序附带 `检测更新.bat`，双击即可一键比对 GitHub 最新版并支持自动热替换升级，完全不增加 NetTrigger 守护程序本身的常驻内存与性能消耗；
+> 2. 如需查看全部历史版本与详细更新日志，请访问 [GitHub Releases 发布主页](https://github.com/Sacilave/net-trigger/releases)；
+> 3. 💡 **绿色纯净**：程序常驻物理内存仅 1.8MB，CPU 严格 0.00%，免管理员权限运行。
 
 ### 步骤 2：配置认证（选择适合你的模式）
 
@@ -152,6 +153,17 @@ flowchart LR
   | 退出                               |
   +------------------------------------+
   ```
+
+---
+
+## 🔄 独立检查更新与一键升级 (零常驻损耗)
+
+为坚守 NetTrigger **“物理内存 < 2MB、CPU 严格 0.00%”** 的极致设计哲学，守护程序在后台坚决不发起任何多余的联网更新轮询。
+
+为此，NetTrigger 配备了独立的 **`检测更新.bat`** 升级小工具：
+- **双击即测**：免配置，双击脚本即可通过 Windows 原生环境秒级查询 GitHub Releases 最新版本并完成语义化比对；
+- **一键热替换**：若发现新版本，按 `1` 即可全自动下载最新便携版、优雅退出旧进程、备份并热替换 `NetTrigger.exe`、并提示自动拉起新版本；
+- **零常驻开销**：完全独立于常驻守护进程运行，退出后 100% 释放所有资源，绝不占用软件主程序的一丝内存和 CPU。
 
 ---
 

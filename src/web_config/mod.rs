@@ -227,7 +227,7 @@ fn handle_http_client(
                 .or_else(|_| parse_json_to_config(body, cached_config));
 
             if let Ok(temp_cfg) = parse_result {
-                let auth_res: AuthResult = crate::auth::AuthExecutor::execute(&temp_cfg, None);
+                let auth_res: AuthResult = crate::auth::AuthExecutor::execute(&temp_cfg, None, true);
                 let result_json = format!(
                     "{{\"success\":{},\"status_code\":{},\"stage_code\":\"{}\",\"message\":\"{}\",\"suggestion\":\"{}\"}}",
                     auth_res.success,

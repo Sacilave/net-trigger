@@ -3,7 +3,7 @@
 
 #define MyAppName "NetTrigger"
 #ifndef MyAppVersion
-#define MyAppVersion "1.2.3"
+#define MyAppVersion "1.2.4"
 #endif
 #define MyAppPublisher "Sacilave"
 #define MyAppURL "https://github.com/Sacilave/net-trigger"
@@ -40,9 +40,11 @@ Name: "desktopicon"; Description: "创建桌面快捷方式"; GroupDescription: 
 Source: "..\target\x86_64-pc-windows-msvc\release\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\config.example.toml"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\README.md"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\检测更新.bat"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
+Name: "{autoprograms}\{#MyAppName} - 检查更新"; Filename: "{app}\检测更新.bat"
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
 [Run]

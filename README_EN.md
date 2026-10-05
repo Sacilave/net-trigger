@@ -4,7 +4,7 @@
 
 **A native, ultra-lightweight (RAM < 2MB), event-driven network status keeper and captive portal auto-reconnect engine designed for Windows.**
 
-[![Release](https://img.shields.io/badge/Release-v1.2.3-blue.svg)](https://github.com/Sacilave/net-trigger/releases)
+[![Release](https://img.shields.io/badge/Release-v1.2.4-blue.svg)](https://github.com/Sacilave/net-trigger/releases)
 [![License](https://img.shields.io/badge/License-CC%20BY--NC%204.0-red.svg)](./LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Windows%2010%20%2F%2011-blue.svg)]()
 [![Memory](https://img.shields.io/badge/RAM-%3C%201.9%20MB-brightgreen.svg)]()
@@ -41,14 +41,15 @@ You can directly download the latest release files below:
 
 | Distribution | Target File | Direct Download Link | Best For | Features |
 | :--- | :--- | :--- | :--- | :--- |
-| **One-Click Windows Installer** | **`NetTrigger-v1.2.3-Setup.exe`** | [**Direct Download**](https://github.com/Sacilave/net-trigger/releases/download/v1.2.3/NetTrigger-v1.2.3-Setup.exe) | Users preferring standard Windows setup wizards | Clean, modern, unprivileged installer creating desktop and Start menu shortcuts with full uninstaller support. |
-| **Portable Standalone Binary (Recommended ⭐)** | **`NetTrigger-v1.2.3-windows-x64.exe`** | [**Direct Download**](https://github.com/Sacilave/net-trigger/releases/download/v1.2.3/NetTrigger-v1.2.3-windows-x64.exe) | Most Windows 10/11 x64 users | **Single file only ~2.08MB**, zero installation needed, extract and run anywhere. |
-| **Full Portable Zip Package** | **`NetTrigger-v1.2.3-windows-x64-portable.zip`** | [**Direct Download**](https://github.com/Sacilave/net-trigger/releases/download/v1.2.3/NetTrigger-v1.2.3-windows-x64-portable.zip) | Users wanting binary + config template + docs | Contains `NetTrigger.exe`, `config.example.toml` template, and documentation bundled together. |
-| **32-Bit Windows Compatibility** | **`NetTrigger-v1.2.3-windows-x86.exe`** | [**Direct Download**](https://github.com/Sacilave/net-trigger/releases/download/v1.2.3/NetTrigger-v1.2.3-windows-x86.exe) | Legacy 32-bit Windows devices | Lightweight standalone binary for 32-bit environments. |
+| **One-Click Windows Installer** | **`NetTrigger-v1.2.4-Setup.exe`** | [**Direct Download**](https://github.com/Sacilave/net-trigger/releases/download/v1.2.4/NetTrigger-v1.2.4-Setup.exe) | Users preferring standard Windows setup wizards | Clean, modern, unprivileged installer creating desktop and Start menu shortcuts with full uninstaller support. |
+| **Portable Standalone Binary (Recommended ⭐)** | **`NetTrigger-v1.2.4-windows-x64.exe`** | [**Direct Download**](https://github.com/Sacilave/net-trigger/releases/download/v1.2.4/NetTrigger-v1.2.4-windows-x64.exe) | Most Windows 10/11 x64 users | **Single file only ~2.08MB**, zero installation needed, extract and run anywhere. |
+| **Full Portable Zip Package** | **`NetTrigger-v1.2.4-windows-x64-portable.zip`** | [**Direct Download**](https://github.com/Sacilave/net-trigger/releases/download/v1.2.4/NetTrigger-v1.2.4-windows-x64-portable.zip) | Users wanting binary + config template + docs | Contains `NetTrigger.exe`, `检测更新.bat`, `config.example.toml` template, and documentation bundled together. |
+| **32-Bit Windows Compatibility** | **`NetTrigger-v1.2.4-windows-x86.exe`** | [**Direct Download**](https://github.com/Sacilave/net-trigger/releases/download/v1.2.4/NetTrigger-v1.2.4-windows-x86.exe) | Legacy 32-bit Windows devices | Lightweight standalone binary for 32-bit environments. |
 
-> 📌 **Download Tips**:
-> 1. For complete historical versions and detailed changelogs, visit [GitHub Releases](https://github.com/Sacilave/net-trigger/releases);
-> 2. 💡 **Pure & Lightweight**: NetTrigger uses only ~1.8MB of RAM, strictly 0.00% idle CPU, and runs without administrator privileges.
+> 📌 **Download & Upgrade Tips**:
+> 1. **Zero-Overhead Updater**: Comes with `检测更新.bat` for instant update checks and one-click upgrades without adding any resident memory or CPU overhead to the daemon;
+> 2. For complete historical versions and detailed changelogs, visit [GitHub Releases](https://github.com/Sacilave/net-trigger/releases);
+> 3. 💡 **Pure & Lightweight**: NetTrigger uses only ~1.8MB of RAM, strictly 0.00% idle CPU, and runs without administrator privileges.
 
 ### Step 2: Configure Authentication (Choose Your Mode)
 
@@ -153,6 +154,17 @@ Three optimized profiles are available in Settings with a single click:
   | Quit                               |
   +------------------------------------+
   ```
+
+---
+
+## 🔄 Standalone Update Checker & One-Click Upgrade (Zero-Overhead)
+
+To strictly enforce NetTrigger's design philosophy of **"RAM < 2MB, CPU strictly 0.00%"**, the background daemon never performs unnecessary background update polling.
+
+Instead, NetTrigger provides a standalone **`检测更新.bat`** (Update Checker) script:
+- **Double-Click to Check**: Query GitHub Releases for the latest versions and compare semantic versions in seconds using native Windows scripts;
+- **One-Click Hot Replacement**: When a new version is available, enter `1` to automatically download the latest portable binary, safely close the running instance, back up, hot-swap `NetTrigger.exe`, and prompt to restart;
+- **Zero Resident Footprint**: Operates 100% independently from the background daemon and releases all resources upon closing, leaving zero runtime impact.
 
 ---
 
