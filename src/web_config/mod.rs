@@ -22,6 +22,20 @@ use std::time::Duration;
 pub const HTML_TEMPLATE: &str = include_str!("template.html");
 
 static ACTIVE_SERVER: std::sync::Mutex<Option<(u16, Arc<AtomicBool>)>> = std::sync::Mutex::new(None);
+static LAST_BROWSER_OPEN: std::sync::Mutex<Option<std::time::Instant>> = std::sync::Mutex::new(None);
+
+/// 检查是否允许唤起浏览器（强制 1.5 秒防抖冷却，防止任何连击多开 Tab）
+fn try_acquire_browser_open_slot() -> bool {
+    let mut last = LAST_BROWSER_OPEN.lock().unwrap_or_else(|e| e.into_inner());
+    let now = std::time::Instant::now();
+    if let Some(prev) = *last {
+        if now.duration_since(prev) < Duration::from_millis(1500) {
+            return false;
+        }
+    }
+    *last = Some(now);
+    true
+}
 
 fn open_browser_url(url: &str) {
     let url_string = url.to_string();
@@ -62,8 +76,10 @@ pub fn launch_ephemeral_web_config(
     let mut lock = ACTIVE_SERVER.lock().unwrap_or_else(|e| e.into_inner());
     if let Some((active_port, ref running_flag)) = *lock {
         if running_flag.load(Ordering::SeqCst) {
-            let server_url = format!("http://127.0.0.1:{}/", active_port);
-            open_browser_url(&server_url);
+            if try_acquire_browser_open_slot() {
+                let server_url = format!("http://127.0.0.1:{}/", active_port);
+                open_browser_url(&server_url);
+            }
             return Ok(active_port);
         }
     }
@@ -111,7 +127,8 @@ pub fn launch_ephemeral_web_config(
         })
         .map_err(|e| format!("启动 Web 临时线程失败: {}", e))?;
 
-    // 服务就绪后并发唤起浏览器
+    // 服务就绪后并发唤起浏览器（记录唤起时间戳防抖）
+    let _ = try_acquire_browser_open_slot();
     open_browser_url(&server_url);
 
     Ok(port)
@@ -378,5 +395,15 @@ mod tests {
         assert_eq!(parsed.general.scenario, crate::config::Scenario::Campus);
         assert_eq!(parsed.auth.mode, "browser");
         assert_eq!(parsed.general.language, crate::config::Language::Auto);
+    }
+
+    #[test]
+    fn test_browser_open_cooldown() {
+        // 第一次应该允许唤起
+        let first = try_acquire_browser_open_slot();
+        // 紧接着的第二次必须被防抖拦截
+        let second = try_acquire_browser_open_slot();
+        assert!(first || !second);
+        assert!(!second, "短时间内连续调用必须被防抖冷却拦截");
     }
 }

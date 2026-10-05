@@ -11,7 +11,7 @@ pub mod autostart;
 use crate::config::Language;
 use crate::state::NetworkState;
 use tray_icon::menu::{CheckMenuItem, Menu, MenuEvent, MenuItem, PredefinedMenuItem, Submenu};
-use tray_icon::{Icon, MouseButton, MouseButtonState, TrayIcon, TrayIconBuilder, TrayIconEvent};
+use tray_icon::{Icon, MouseButton, TrayIcon, TrayIconBuilder, TrayIconEvent};
 
 /// 托盘多语言文本静态映射表（零动态分配）
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -164,6 +164,7 @@ impl SystemTrayManager {
                 .with_menu(Box::new(menu.clone()))
                 .with_tooltip(format!("{} - {}", app_name, i18n.init_tooltip))
                 .with_icon(initial_icon.clone())
+                .with_menu_on_left_click(true)
                 .build()
             {
                 Ok(icon) => break icon,
@@ -278,22 +279,24 @@ impl SystemTrayManager {
 
     /// 轮询托盘交互事件（非阻塞）
     pub fn poll_menu_event(&self) -> Option<TrayAction> {
-        // 1. 响应托盘图标左键单击 / 双击：直接唤起【设置】
-        if let Ok(event) = TrayIconEvent::receiver().try_recv() {
-            match event {
-                TrayIconEvent::Click {
-                    button: MouseButton::Left,
-                    button_state: MouseButtonState::Up,
-                    ..
-                }
-                | TrayIconEvent::DoubleClick {
-                    button: MouseButton::Left,
-                    ..
-                } => {
-                    return Some(TrayAction::OpenWebConfig);
-                }
-                _ => {}
+        // 1. 响应托盘图标左键双击：直接唤起【设置】
+        // 左键单击由 tray-icon 的 menu_on_left_click 自动弹出菜单，避免误跳浏览器
+        let mut hit_double_click = false;
+        while let Ok(event) = TrayIconEvent::receiver().try_recv() {
+            if let TrayIconEvent::DoubleClick {
+                button: MouseButton::Left,
+                ..
+            } = event
+            {
+                hit_double_click = true;
+                break;
             }
+        }
+
+        if hit_double_click {
+            // 排空通道内堆积的后续托盘鼠标事件，彻底杜绝连击
+            while TrayIconEvent::receiver().try_recv().is_ok() {}
+            return Some(TrayAction::OpenWebConfig);
         }
 
         // 2. 响应右键上下文菜单项点击
